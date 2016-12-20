@@ -21,6 +21,13 @@ io.sockets.on('connection', function(socket) {
 		if (numPlayers < 2) {
 			players[numPlayers] = socket.id;
 			io.sockets.connected[socket.id].emit("joinGameAttempt", true);
+			//go in here if the second player is about to join
+			if (numPlayers == 1) {
+				for (player in players) {
+					var playerId = players[player];
+					io.sockets.connected[playerId].emit("startGame");
+				}
+			}
 		} else {
 			io.sockets.connected[socket.id].emit("joinGameAttempt", false);
 		}

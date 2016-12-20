@@ -20,6 +20,13 @@ bottom:70px;
 
 }
 
+#endTurn {
+	position: absolute;
+	top:50px;
+	right:200px;
+	display:none;
+}
+
 .trash {
 	position: absolute;
 	bottom: 70px;
