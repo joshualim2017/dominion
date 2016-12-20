@@ -1,0 +1,27 @@
+.card {
+
+}
+
+.cardSize {
+		width: 120px;
+	height: 190px;
+}
+
+#hand {
+position: absolute	;
+bottom:70px;
+}
+
+.selected {
+	border: 2px solid #A219ED;
+}
+
+.deck {
+
+}
+
+.trash {
+	position: absolute;
+	bottom: 70px;
+	right: 20px;
+}
