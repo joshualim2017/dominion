@@ -2,17 +2,38 @@
 
         $( document ).ready(function() {
         console.log( "document loaded" );
-                    $("#joinGame").click(function(){
+        var username;
+
+/**************************
+*  START EVENT LISTENERS  *
+***************************/
+            //click join game button
+            $("#joinGame").click(function(){
                 joinGame();
             });  
+
+            //click end turn button
+            $("#endTurn").click(function() {
+                endTurn();
+            });
+
+            //press enter test - CURRENTLY NOT USED
             $(document).keypress(function (e) {
                 if (e.which == 13) {
                     sendTest();
                 }
             });
 
+            //select card - CURRENTLY NOT USED
             $(document).on('click', '.card', selectCard);
+
+/**************************
+*    END EVENT LISTENERS  *
+***************************/
             
+/**************************
+*  START SOCKET LISTENERS  *
+***************************/            
             var socketio = io.connect("127.0.0.1:1337");
 
             socketio.on("message_to_client", function(data) {
@@ -37,10 +58,20 @@
                 }
             });
 
+           socketio.on('startTurn', function(data) {
+            if (data.name === username) {
+                startTurn();
+            } 
+            console.log("Starting " + data.name + "'s turn.");
+           });
+
            socketio.on('startGame', function() {
                 startGame();
            });
 
+/**************************
+*  END SOCKET LISTENERS  *
+***************************/
             function joinGame() {
                 socketio.emit("joinGame");
             }
@@ -49,9 +80,11 @@
                 socketio.emit("test");
             }
 
-            function resolveJoinGameAttempt(success) {
-             if (success) {
+            function resolveJoinGameAttempt(data) { 
+            if (data.success) {
                 $("#joinGame").prop('innerHTML', "Joined"); 
+                username = data.name;
+                console.log("You are " + username);
             } else {
                 $("#joinGame").prop('innerHTML', "Failed to Join"); 
             }
@@ -76,5 +109,17 @@
             // for the clients that will begin the game, display the needed objects to start a game
             function startGame() {
                 $("#endTurn").show();
+                $("#endTurn").prop('disabled', true);
+            }
+
+            //allow client to execute turn
+            function startTurn() {
+                $("#endTurn").prop('disabled', false);
+            }
+
+            //end current player's turn and let server know
+            function endTurn() {
+                socketio.emit("endTurn");
+                $("#endTurn").prop('disabled', true);
             }
     });
