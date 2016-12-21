@@ -3,6 +3,12 @@
         $( document ).ready(function() {
         console.log( "document loaded" );
         var username;
+        var cardInfo = {
+            'copper' : { src: '/cards/copper.jpg',
+                         classes: 'card cardSize'},
+            'estate' : { src: '/cards/estate.jpg',
+                         classes: 'card cardSize'},                         
+        }
 
 /**************************
 *  START EVENT LISTENERS  *
@@ -49,12 +55,12 @@
 
            socketio.on('joinGameAttempt', function(success) {
             resolveJoinGameAttempt(success);
-           });
+           });  
            
 
            socketio.on('game', function(cards) {
                 for (var i = 0; i < cards.length; i++) {
-                    addCard(cards[i]);
+                    displayCard(cardInfo[cards[i]]);
                 }
             });
 
@@ -68,6 +74,15 @@
            socketio.on('startGame', function() {
                 startGame();
            });
+
+           socketio.on('cardsToDraw', function(data) {
+                var card;
+                for (var i =0; i < data.quantity; i++) {
+                    card = data.cards[i];
+                    displayCard(cardInfo[card]);
+                }
+           });
+
 
 /**************************
 *  END SOCKET LISTENERS  *
@@ -100,10 +115,9 @@
                 currentCard.classList.add("selected");
             }
 
-            function addCard(card) {
-                for (var i = 0; i < card.quantity; i++) {
-                    $("#hand").append("<img src='" + card.src + "' class='" + card.classes + "'>")
-                }
+            function displayCard(card) {
+              $("#hand").append("<img src='" + card.src + "' class='" + card.classes + "'>")
+                
             }
 
             // for the clients that will begin the game, display the needed objects to start a game
@@ -120,6 +134,7 @@
             //end current player's turn and let server know
             function endTurn() {
                 socketio.emit("endTurn");
+                $("#hand img").remove();
                 $("#endTurn").prop('disabled', true);
             }
     });
