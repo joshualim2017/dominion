@@ -11,31 +11,52 @@ app.get('/',function(req, res){
   res.sendFile(__dirname + '/client.html');
 });
 
+
+//START GLOBAL VARIABLES
+currPlayer = 0;
 gameStarted=false;
+maxNumPlayers = 4;
+currNumPlayers = 0
 players = {};
+
+//END GLOBAL VARIABLES
+
+
 
 io.sockets.on('connection', function(socket) {
 	//if client gets a message on the socket named "message to server", then add the first two clients to the list
 	socket.on('joinGame', function() { 
-		var numPlayers = Object.keys(players).length;
-		if (numPlayers < 2) {
-			players[numPlayers] = socket.id;
-			io.sockets.connected[socket.id].emit("joinGameAttempt", true);
-			//go in here if the second player is about to join
-			if (numPlayers == 1) {
+		if (currNumPlayers < maxNumPlayers) {
+			players[currNumPlayers] = socket.id;
+			io.sockets.connected[socket.id].emit("joinGameAttempt", {success: true, name: "Player " + currNumPlayers});
+			//go in here if the last player is about to join
+			if (currNumPlayers == maxNumPlayers - 1) {
 				for (player in players) {
 					var playerId = players[player];
 					io.sockets.connected[playerId].emit("startGame");
+					io.sockets.connected[playerId].emit("startTurn", {name: "Player " + currPlayer});
 				}
 			}
+			currNumPlayers += 1;
 		} else {
-			io.sockets.connected[socket.id].emit("joinGameAttempt", false);
+			io.sockets.connected[socket.id].emit("joinGameAttempt", {success: false});
 		}
 
 		// testing to make sure it works - send to clientside to see that it actually changes
 		io.sockets.emit("output", ["List of players/accepted sockets", players]); 
 
 	});
+
+	//update current player, CHECK GAME END CONDITIONS, notify all clients of current player
+	socket.on('endTurn', function() {
+		updateCurrentPlayer();
+		//CHECK END CONDITIONS
+		for (player in players) {
+			var playerId = players[player];
+			io.sockets.connected[playerId].emit("startTurn", {name: "Player " + currPlayer});
+		}
+	});
+
 	socket.on('test', function (data) {
 		if (!gameStarted) {
 
@@ -44,6 +65,11 @@ io.sockets.on('connection', function(socket) {
 		} 
 	});
 });
+
+//returns the number of next player
+function updateCurrentPlayer() {
+	currPlayer = (currPlayer + 1) % maxNumPlayers;
+}
 
 function createStartingHand() {
 	var hand = [
@@ -61,3 +87,4 @@ function createStartingHand() {
 	}];
 	return hand;
 }
+
