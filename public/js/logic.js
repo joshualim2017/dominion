@@ -3,6 +3,7 @@
         $( document ).ready(function() {
         console.log( "document loaded" );
         var username;
+        var hand = [];
         var cardInfo = {
             'copper' : { src: '/cards/copper.jpg',
                          classes: 'card cardSize'},
@@ -23,13 +24,7 @@
                 endTurn();
             });
 
-            //press enter test - CURRENTLY NOT USED
-            $(document).keypress(function (e) {
-                if (e.which == 13) {
-                    sendTest();
-                }
-            });
-
+    
             //select card - CURRENTLY NOT USED
             $(document).on('click', '.card', selectCard);
 
@@ -77,6 +72,7 @@
 
            socketio.on('cardsToDraw', function(data) {
                 var card;
+                $.merge(hand, data.cards);
                 for (var i =0; i < data.quantity; i++) {
                     card = data.cards[i];
                     displayCard(cardInfo[card]);
@@ -131,9 +127,10 @@
                 $("#endTurn").prop('disabled', false);
             }
 
-            //end current player's turn and let server know
+            //end current player's turn: 1) send discarded cards to server, clear hand, clear hand cards in UI, disable endTurn button
             function endTurn() {
-                socketio.emit("endTurn");
+                socketio.emit("endTurn", {cardsToDiscard: hand});
+                hand = [];
                 $("#hand img").remove();
                 $("#endTurn").prop('disabled', true);
             }
