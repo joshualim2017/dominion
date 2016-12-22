@@ -3,13 +3,33 @@
 }
 
 .cardSize {
-		width: 120px;
-	height: 190px;
+	width: 108px;
+	height: 171px;
 }
 
 #hand {
 position: absolute	;
-bottom:70px;
+bottom:14px;
+left: 148px;
+}
+
+#shopSection {
+	position: relative;
+    height: 400px;
+    background-color: blue;
+}
+
+
+#playedCardsSection {
+	position: relative;
+	height: 250px;
+	background-color: red;
+}
+
+#handTrashSection {
+	position: relative;
+	height: 200px;
+	background-color: yellow;
 }
 
 .selected {
@@ -17,18 +37,20 @@ bottom:70px;
 }
 
 .deck {
-
+	position: absolute;
+	bottom: 14px;
+	left: 20px;
 }
 
 #endTurn {
 	position: absolute;
-	top:50px;
-	right:200px;
+	top:100px;
+	right:50px;
 	display:none;
 }
 
 .trash {
 	position: absolute;
-	bottom: 70px;
+	bottom: 14px;
 	right: 20px;
 }
