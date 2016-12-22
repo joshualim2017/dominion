@@ -13,11 +13,13 @@ app.get('/',function(req, res){
 
 
 //START GLOBAL VARIABLES
-currPlayer = 0;
-gameStarted=false;
-maxNumPlayers = 4;
-currNumPlayers = 0
-players = {};
+var currPlayer = 0;
+var gameStarted=false;
+var maxNumPlayers = 2;
+var currNumPlayers = 0
+var playerSocketIds = {};
+var playerDecks = {} 
+var playerDiscardPile={}
 
 //END GLOBAL VARIABLES
 
@@ -27,15 +29,13 @@ io.sockets.on('connection', function(socket) {
 	//if client gets a message on the socket named "message to server", then add the first two clients to the list
 	socket.on('joinGame', function() { 
 		if (currNumPlayers < maxNumPlayers) {
-			players[currNumPlayers] = socket.id;
+			playerSocketIds[currNumPlayers] = socket.id;
+			playerDecks[currNumPlayers] = [];
+			playerDiscardPile[currNumPlayers] = [];
 			io.sockets.connected[socket.id].emit("joinGameAttempt", {success: true, name: "Player " + currNumPlayers});
 			//go in here if the last player is about to join
 			if (currNumPlayers == maxNumPlayers - 1) {
-				for (player in players) {
-					var playerId = players[player];
-					io.sockets.connected[playerId].emit("startGame");
-					io.sockets.connected[playerId].emit("startTurn", {name: "Player " + currPlayer});
-				}
+				startGame();
 			}
 			currNumPlayers += 1;
 		} else {
@@ -43,26 +43,22 @@ io.sockets.on('connection', function(socket) {
 		}
 
 		// testing to make sure it works - send to clientside to see that it actually changes
-		io.sockets.emit("output", ["List of players/accepted sockets", players]); 
+		io.sockets.emit("output", ["List of players/accepted sockets", playerSocketIds]); 
 
 	});
+
 
 	//update current player, CHECK GAME END CONDITIONS, notify all clients of current player
-	socket.on('endTurn', function() {
+	socket.on('endTurn', function(data) {
+		playerDiscardPile[currPlayer] = playerDiscardPile[currPlayer].concat(data.cardsToDiscard);
+		io.sockets.emit("output", ["Player's discard pile", playerDiscardPile[currPlayer]]); 
+		drawCards(currPlayer, 5);
 		updateCurrentPlayer();
 		//CHECK END CONDITIONS
-		for (player in players) {
-			var playerId = players[player];
-			io.sockets.connected[playerId].emit("startTurn", {name: "Player " + currPlayer});
+		for (playerId in playerSocketIds) {
+			var socketId = playerSocketIds[playerId];
+			io.sockets.connected[socketId].emit("startTurn", {name: "Player " + currPlayer});
 		}
-	});
-
-	socket.on('test', function (data) {
-		if (!gameStarted) {
-
-		io.sockets.connected[socket.id].emit("game", createStartingHand());
-		gameStarted = true;
-		} 
 	});
 });
 
@@ -71,20 +67,49 @@ function updateCurrentPlayer() {
 	currPlayer = (currPlayer + 1) % maxNumPlayers;
 }
 
-function createStartingHand() {
-	var hand = [
-	{
-		name: 'copper',
-		quantity: 7,
-		src: '/cards/copper.jpg',
-		classes: 'card cardSize'
-	},
-	{
-		name: 'estate',
-		quantity: 3,
-		src: '/cards/estate.jpg',
-		classes: 'card cardSize'
-	}];
-	return hand;
+//do required actions to start game, create starting hands, send info to clients, etc.
+function startGame() {
+	for (playerId in playerSocketIds) {
+		var socketId = playerSocketIds[playerId];
+		playerDecks[playerId] = createStartingDeck();
+		drawCards(playerId,5);
+		io.sockets.connected[socketId].emit("startGame");
+		io.sockets.connected[socketId].emit("startTurn", {name: "Player " + currPlayer});
+	}	
 }
 
+//pops of the first numCards of player's deck and send them to the player
+function drawCards(playerId, numCards) {
+	var cardsToDraw = [];
+	var socketId = playerSocketIds[playerId];
+	for (var i = 0; i < numCards; i++) {
+		if (playerDecks[playerId].length == 0) {
+			playerDecks[playerId] = shuffleDeck(playerDiscardPile[playerId]);
+			playerDiscardPile[playerId] = [];
+			//EDGE CASE if discard is empty, then stop. 
+		}
+		cardsToDraw.push(playerDecks[playerId].shift());
+	}
+	io.sockets.connected[socketId].emit("cardsToDraw", {quantity: cardsToDraw.length, cards: cardsToDraw});
+}
+
+function createStartingDeck() {
+	var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate'];
+	return shuffleDeck(deck);
+}
+
+//does not alter original arr, only makes copy
+function shuffleDeck(arr) {
+	var randomNum, arrIndex, copiedArr, shuffledDeck, originalLength;
+	copiedArr = arr.copyWithin();
+	shuffledDeck = [];
+	originalLength = copiedArr.length;
+	for (var i = 0; i < originalLength; i++) {
+		randomNum = Math.random();
+		//use current length, not original lenght
+		arrIndex = Math.floor(randomNum * copiedArr.length);
+		//pop the arrIndexth element out
+		shuffledDeck = shuffledDeck.concat(copiedArr.splice(arrIndex, 1));
+	}
+	return shuffledDeck;
+}
