@@ -4,6 +4,7 @@
         console.log( "document loaded" );
         var username;
         var hand = [];
+        var shop = {};
         var cardInfo = {
             'copper' : { src: '/cards/copper.jpg',
                          classes: 'card cardSize'},
@@ -68,6 +69,14 @@
 
            socketio.on('startGame', function() {
                 startGame();
+           });
+
+           socketio.on('shop', function(data) {
+                var cardsInShop;
+                shop = data.shop;
+                //sort because order not guaranteed across clients
+                cardsInShop = Object.keys(data.shop).sort();
+                //displayShopCard
            });
 
            socketio.on('cardsToDraw', function(data) {

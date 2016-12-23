@@ -20,6 +20,7 @@ var currNumPlayers = 0
 var playerSocketIds = {};
 var playerDecks = {} 
 var playerDiscardPile={}
+var shop = {} 
 
 //END GLOBAL VARIABLES
 
@@ -67,12 +68,14 @@ function updateCurrentPlayer() {
 	currPlayer = (currPlayer + 1) % maxNumPlayers;
 }
 
-//do required actions to start game, create starting hands, send info to clients, etc.
+//do required actions to start game, create starting hands, send shop info  to clients, etc.
 function startGame() {
 	for (playerId in playerSocketIds) {
 		var socketId = playerSocketIds[playerId];
 		playerDecks[playerId] = createStartingDeck();
 		drawCards(playerId,5);
+		initializeDefaultShop();
+		io.sockets.connected[socketId].emit("shop", {"shop": shop}),
 		io.sockets.connected[socketId].emit("startGame");
 		io.sockets.connected[socketId].emit("startTurn", {name: "Player " + currPlayer});
 	}	
@@ -112,4 +115,9 @@ function shuffleDeck(arr) {
 		shuffledDeck = shuffledDeck.concat(copiedArr.splice(arrIndex, 1));
 	}
 	return shuffledDeck;
+}
+
+//initialize default shop; changes global variable, does not return anything
+function initializeDefaultShop() {
+	shop = {"copper": 40, "estate": 8};
 }
