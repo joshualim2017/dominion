@@ -4,11 +4,20 @@
         console.log( "document loaded" );
         var username;
         var hand = [];
+        var shop = {};
         var cardInfo = {
             'copper' : { src: '/cards/copper.jpg',
                          classes: 'card cardSize'},
             'estate' : { src: '/cards/estate.jpg',
-                         classes: 'card cardSize'},                         
+                         classes: 'card cardSize'},                        
+            'duchy' : { src: '/cards/duchy.jpg',
+                         classes: 'card cardSize'},
+            'province' : { src: '/cards/province.jpg',
+                         classes: 'card cardSize'},  
+            'silver' : { src: '/cards/silver.jpg',
+                         classes: 'card cardSize'},
+            'gold' : { src: '/cards/gold.jpg',
+                         classes: 'card cardSize'},   
         }
 
 /**************************
@@ -55,7 +64,7 @@
 
            socketio.on('game', function(cards) {
                 for (var i = 0; i < cards.length; i++) {
-                    displayCard(cardInfo[cards[i]]);
+                    displayHandCard(cardInfo[cards[i]]);
                 }
             });
 
@@ -70,12 +79,23 @@
                 startGame();
            });
 
+           socketio.on('shop', function(data) {
+                var cardsInShop, currentCard;
+                shop = data.shop;
+                //sort because order not guaranteed across clients
+                cardsInShop = Object.keys(data.shop).sort();
+                for (var i = 0; i < cardsInShop.length; i++) {
+                    currentCard = cardsInShop[i];
+                    displayShopCard(currentCard, shop[currentCard]);
+                }
+           });
+
            socketio.on('cardsToDraw', function(data) {
                 var card;
                 $.merge(hand, data.cards);
                 for (var i =0; i < data.quantity; i++) {
                     card = data.cards[i];
-                    displayCard(cardInfo[card]);
+                    displayHandCard(card);
                 }
            });
 
@@ -111,9 +131,21 @@
                 currentCard.classList.add("selected");
             }
 
-            function displayCard(card) {
+            //input string name of card, will convert to card object using cardInfo
+            function displayHandCard(cardStr) {
+                var card = cardInfo[cardStr];
               $("#hand").append("<img src='" + card.src + "' class='" + card.classes + "'>")
                 
+            }
+
+            //displays the card in shop with the quantity
+            function displayShopCard(cardStr, quantity) {
+                var card = cardInfo[cardStr];
+
+                 $("#shopSection").append("<div class='shopCard'>" +
+                    "<img src='" + card.src + "' class='" + card.classes + "'>" +
+                    "<p class='quantity'>" + quantity + "</p>" +
+                    "</div>")
             }
 
             // for the clients that will begin the game, display the needed objects to start a game
