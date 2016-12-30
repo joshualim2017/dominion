@@ -119,5 +119,5 @@ function shuffleDeck(arr) {
 
 //initialize default shop; changes global variable, does not return anything
 function initializeDefaultShop() {
-	shop = {"copper": 40, "estate": 8};
+	shop = {"copper": 40, "estate": 8, "duchy": 8, "province": 8, "silver": 40, "gold": 40};
 }
