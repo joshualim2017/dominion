@@ -70,13 +70,15 @@
 
            socketio.on('startTurn', function(data) {
             if (data.name === username) {
-                startTurn();
+                startTurn(data.numActions, data.numBuys, data.numTreasures);
             } 
             console.log("Starting " + data.name + "'s turn.");
            });
 
-           socketio.on('startGame', function() {
+           //display shop, display turn info, start player 1's turn
+           socketio.on('startGame', function(data) {
                 startGame();
+                setUpShop(data.shop)
            });
 
            socketio.on('shop', function(data) {
@@ -148,14 +150,31 @@
                     "</div>")
             }
 
+            //setup work for shop; input shop is an object with {shopCard : quantity}
+            function setUpShop(shopFromServer){
+                var cardsInShop, currentCard;
+                shop = shopFromServer;
+                //sort because order not guaranteed across clients
+                cardsInShop = Object.keys(shopFromServer).sort();
+                for (var i = 0; i < cardsInShop.length; i++) {
+                    currentCard = cardsInShop[i];
+                    displayShopCard(currentCard, shop[currentCard]);
+                }
+            }
+
+
             // for the clients that will begin the game, display the needed objects to start a game
             function startGame() {
+                $(".turnInfo").show();
                 $("#endTurn").show();
                 $("#endTurn").prop('disabled', true);
             }
 
             //allow client to execute turn
-            function startTurn() {
+            function startTurn(numActions, numBuys, numTreasures) {
+                $("#numTreasures").prop("innerHTML", numTreasures);
+                $("#numBuys").prop("innerHTML", numBuys);
+                $("#numActions").prop("innerHTML", numActions);
                 $("#endTurn").prop('disabled', false);
             }
 

@@ -14,6 +14,23 @@
 	display: inline-block;
 }
 
+.turnInfo {
+	position: absolute;
+	display: none;
+}
+
+.turnInfo.numActions {
+	top:10px;
+}
+
+.turnInfo.numBuys {
+	top:40px;
+}
+
+.turnInfo.numTreasures {
+	top:70px;
+}
+
 .quantity {
     position: absolute;
     top: 10px;

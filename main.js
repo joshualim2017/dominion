@@ -21,6 +21,9 @@ var playerSocketIds = {};
 var playerDecks = {} 
 var playerDiscardPile={}
 var shop = {} 
+var numActions = 1;
+var numBuys = 1;
+var numTreasures = 0;
 
 //END GLOBAL VARIABLES
 
@@ -55,10 +58,13 @@ io.sockets.on('connection', function(socket) {
 		io.sockets.emit("output", ["Player's discard pile", playerDiscardPile[currPlayer]]); 
 		drawCards(currPlayer, 5);
 		updateCurrentPlayer();
+		resetTurnInfo();
 		//CHECK END CONDITIONS
 		for (playerId in playerSocketIds) {
 			var socketId = playerSocketIds[playerId];
 			io.sockets.connected[socketId].emit("startTurn", {name: "Player " + currPlayer});
+			io.sockets.connected[socketId].emit("turnInfo", {"numActions":numActions, 
+				"numBuys":numBuys, "numTreasures":numTreasures});
 		}
 	});
 });
@@ -75,9 +81,10 @@ function startGame() {
 		playerDecks[playerId] = createStartingDeck();
 		drawCards(playerId,5);
 		initializeDefaultShop();
-		io.sockets.connected[socketId].emit("shop", {"shop": shop}),
-		io.sockets.connected[socketId].emit("startGame");
-		io.sockets.connected[socketId].emit("startTurn", {name: "Player " + currPlayer});
+		//TODO: combined multiple socket calls to one
+		io.sockets.connected[socketId].emit("startGame", {"shop": shop});
+		io.sockets.connected[socketId].emit("startTurn", {name: "Player " + currPlayer, 
+			"numActions":numActions, "numBuys":numBuys, "numTreasures":numTreasures});
 	}	
 }
 
@@ -120,4 +127,11 @@ function shuffleDeck(arr) {
 //initialize default shop; changes global variable, does not return anything
 function initializeDefaultShop() {
 	shop = {"copper": 40, "estate": 8, "duchy": 8, "province": 8, "silver": 40, "gold": 40};
+}
+
+//reset buys, actions, treasures
+function resetTurnInfo() {
+	numBuys = 1;
+	numActions = 1;
+	numTreasures = 0;
 }
