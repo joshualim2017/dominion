@@ -25,6 +25,27 @@ var numActions = 1;
 var numBuys = 1;
 var numTreasures = 0;
 
+var cardInfo = {
+    'copper' : { cost: 0,
+    		     value: 1,
+                 type: "T"},
+    'estate' : { cost: 2,
+                 classes: 'card cardSize',
+                 type: "V"},                        
+    'duchy' : { cost: 5,
+                 classes: 'card cardSize',
+                 type: "V"},
+    'province' : { cost: 8,
+                 classes: 'card cardSize',
+                 type: "V"},  
+    'silver' : { cost: 3,
+    			 value: 2,
+                 type: "T"},
+    'gold' : {   cost: 6,
+             	 value: 3,
+                 type: "T"},   
+}
+
 //END GLOBAL VARIABLES
 
 
@@ -46,11 +67,11 @@ io.sockets.on('connection', function(socket) {
 			io.sockets.connected[socket.id].emit("joinGameAttempt", {success: false});
 		}
 
-		// testing to make sure it works - send to clientside to see that it actually changes
-		io.sockets.emit("output", ["List of players/accepted sockets", playerSocketIds]); 
-
 	});
 
+	socket.on('playCard', function(data) {
+		resolvePlayedCard(data.cardToPlay);
+	});
 
 	//update current player, CHECK GAME END CONDITIONS, notify all clients of current player
 	socket.on('endTurn', function(data) {
@@ -62,8 +83,7 @@ io.sockets.on('connection', function(socket) {
 		//CHECK END CONDITIONS
 		for (playerId in playerSocketIds) {
 			var socketId = playerSocketIds[playerId];
-			io.sockets.connected[socketId].emit("startTurn", {name: "Player " + currPlayer});
-			io.sockets.connected[socketId].emit("turnInfo", {"numActions":numActions, 
+			io.sockets.connected[socketId].emit("startTurn", {"name": "Player " + currPlayer, "numActions":numActions, 
 				"numBuys":numBuys, "numTreasures":numTreasures});
 		}
 	});
@@ -81,7 +101,6 @@ function startGame() {
 		playerDecks[playerId] = createStartingDeck();
 		drawCards(playerId,5);
 		initializeDefaultShop();
-		//TODO: combined multiple socket calls to one
 		io.sockets.connected[socketId].emit("startGame", {"shop": shop});
 		io.sockets.connected[socketId].emit("startTurn", {name: "Player " + currPlayer, 
 			"numActions":numActions, "numBuys":numBuys, "numTreasures":numTreasures});
@@ -134,4 +153,16 @@ function resetTurnInfo() {
 	numBuys = 1;
 	numActions = 1;
 	numTreasures = 0;
+}
+
+//resolves playing a card
+function resolvePlayedCard(cardName) {
+	var card = cardInfo[cardName];
+	if (card.type === "T") {
+		numTreasures += card.value;
+		for (playerId in playerSocketIds) {
+			var socketId = playerSocketIds[playerId];
+			io.sockets.connected[socketId].emit("resolvePlayedCard", {"cardPlayed": cardName, "numTreasures": numTreasures})
+		}
+	}
 }
