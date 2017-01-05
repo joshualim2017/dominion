@@ -40,6 +40,8 @@
                 endTurn();
             });
 
+            //click a buy button
+            $(document).on('click', '.ableToBuy', buyCard);
     
             $(document).on('click', '.card', playCard);
 
@@ -59,8 +61,7 @@
           
             //used for testing. output[0] is descriptive string, output[1] is what you want to output
            socketio.on("output", function(output) {
-            console.log(output[0]);
-            console.log(output[1]);
+            console.log(output);
                 });
 
            socketio.on('joinGameAttempt', function(success) {
@@ -93,6 +94,16 @@
                 //extra effect add in later for actions
            });
 
+           socketio.on('resolveBuyCard', function(data) {
+             updateTurnInfo(undefined, data.numBuys, data.numTreasures, undefined);
+             $("#shopSection div").remove();
+             setUpShop(data.shop);
+           });
+
+           socketio.on('ableToBePurchasedCards', function(data) {
+                updateAbleToBePurchasedCards(data.ableToBePurchasedCards);
+           });
+
            socketio.on('cardsToDraw', function(data) {
                 var card;
                 $.merge(hand, data.cards);
@@ -108,10 +119,6 @@
 ***************************/
             function joinGame() {
                 socketio.emit("joinGame");
-            }
-            function sendTest() {
-
-                socketio.emit("test");
             }
 
             function resolveJoinGameAttempt(data) { 
@@ -164,10 +171,16 @@
             function displayShopCard(cardStr, quantity) {
                 var card = cardInfo[cardStr];
 
-                 $("#shopSection").append("<div class='shopCard'>" +
-                    "<img src='" + card.src + "' class='" + card.classes + "'>" +
-                    "<p class='quantity'>" + quantity + "</p>" +
-                    "</div>");
+                 $("#shopSection").append(
+                    "<div class='shopCard'>" +
+                        "<img src='" + card.src + "' data-card='" + cardStr + "' class='" + card.classes + "'>" + 
+                        "<p class='quantity'>" + 
+                            quantity + 
+                        "</p>" +
+                        "<button class='ableToBuy' data-card='" + cardStr + "'>" +
+                            "+" +
+                        "</button>" +
+                     "</div>");
             }
 
             //setup work for shop; input shop is an object with {shopCard : quantity}
@@ -198,8 +211,6 @@
                     $("#hand img.T").toggleClass("yellow-border");
                     //ToDO-  play treasures button
                 }
-
-
             }
 
             function hasTreasureCards() {
@@ -226,13 +237,16 @@
                 playedCards = [];
                 hand = [];
                 $("#hand img").remove();
+                $("#shopSection button").hide();
                 $("#endTurn").prop('disabled', true);
             }
 
             //display card in playedCards section and update A/B/T
             function updateTurnInfo(numActions, numBuys, numTreasures, cardStr) {
-                var card = cardInfo[cardStr];
-                $("#playedCards").append("<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + " " +  card.type + "'>");
+                if (cardStr !== undefined) {
+                    var card = cardInfo[cardStr];
+                    $("#playedCards").append("<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + " " +  card.type + "'>");
+                }
                 if (numActions !== undefined) {
                     $("#numActions").prop("innerHTML", numActions);
                 } 
@@ -243,4 +257,28 @@
                     $("#numTreasures").prop("innerHTML", numTreasures);
                 }
             }
+
+            function updateAbleToBePurchasedCards(ableToBePurchasedCards) {
+                var buyButtons, i, j, currentCard, currentButton;
+                buyButtons = $("#shopSection button");
+                for (i=0; i<ableToBePurchasedCards.length; i++ ) {
+                    currentCard = ableToBePurchasedCards[i]
+                    for (j=0; j<buyButtons.length; j++) {
+                        currentButton = buyButtons[j];
+                        if (currentCard === currentButton.getAttribute("data-card")) {
+                            $(currentButton).show();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            function buyCard(event) {
+                var cardToBuy = event.currentTarget.getAttribute("data-card");
+                $("#shopSection button").hide();
+                //later on verify on server side - CANNOT PLAY CARDS AFTER FIRST BUY
+                $("#hand img").removeClass("yellow-border");
+                socketio.emit("buyCard", {"cardToBuy": cardToBuy});
+            }
     });
+        
