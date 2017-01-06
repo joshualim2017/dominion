@@ -3,9 +3,6 @@
         $( document ).ready(function() {
         console.log( "document loaded" );
         var username;
-        var hand = [];
-        var playedCards = [];
-        var shop = {};
         var cardInfo = {
             'copper' : { src: '/cards/copper.jpg',
                          classes: 'card cardSize',
@@ -54,11 +51,6 @@
 ***************************/            
             var socketio = io.connect("127.0.0.1:1337");
 
-            socketio.on("message_to_client", function(data) {
-                document.getElementById("chatlog").innerHTML = ("<hr/>" + 
-                    data['message'] + document.getElementById("chatlog").innerHTML);
-                });
-          
             //used for testing. output[0] is descriptive string, output[1] is what you want to output
            socketio.on("output", function(output) {
             console.log(output);
@@ -98,17 +90,22 @@
              updateTurnInfo(undefined, data.numBuys, data.numTreasures, undefined);
              $("#shopSection div").remove();
              setUpShop(data.shop);
+             updatePlayableCards(data.playableCards);
            });
 
            socketio.on('ableToBePurchasedCards', function(data) {
                 updateAbleToBePurchasedCards(data.ableToBePurchasedCards);
            });
 
-           socketio.on('cardsToDraw', function(data) {
+           socketio.on('playableCards', function(data) {
+                updatePlayableCards(data.playableCards);
+           });
+
+           socketio.on('hand', function(data) {
                 var card;
-                $.merge(hand, data.cards);
-                for (var i =0; i < data.quantity; i++) {
-                    card = data.cards[i];
+                $("#hand img").remove();
+                for (var i =0; i <data.hand.length; i++) {
+                    card = data.hand[i];
                     displayHandCard(card);
                 }
            });
@@ -148,13 +145,6 @@
                 //check if highlighted
                 if (card.classList.contains('yellow-border')) {
                     cardName = card.getAttribute("data-card");
-                    //remove from UI
-                    card.remove();
-                    //Remove from hand array
-                    index = hand.indexOf(cardName);
-                    hand.splice(index, 1);
-                    //put card into playedCards array
-                    playedCards.push(cardName);
                     //send to server
                     socketio.emit("playCard", {cardToPlay: cardName});
                 }
@@ -186,12 +176,11 @@
             //setup work for shop; input shop is an object with {shopCard : quantity}
             function setUpShop(shopFromServer){
                 var cardsInShop, currentCard;
-                shop = shopFromServer;
                 //sort because order not guaranteed across clients
                 cardsInShop = Object.keys(shopFromServer).sort();
                 for (var i = 0; i < cardsInShop.length; i++) {
                     currentCard = cardsInShop[i];
-                    displayShopCard(currentCard, shop[currentCard]);
+                    displayShopCard(currentCard, shopFromServer[currentCard]);
                 }
             }
 
@@ -207,20 +196,9 @@
             function startTurn(numActions, numBuys, numTreasures) {
                 $("#endTurn").prop('disabled', false);
                 //IGNORE ACTION CARDS FOR NOW
-                if (hasTreasureCards()) {
-                    $("#hand img.T").toggleClass("yellow-border");
-                    //ToDO-  play treasures button
-                }
             }
 
-            function hasTreasureCards() {
-                for (var i = 0; i < hand.length; i++) {
-                    if (cardInfo[hand[i]].type === "T") {
-                        return true;
-                    }
-                }
-                return false;
-            }
+
             //display whose turn it is and the actions,buys,treasures and remove the cards played from last turn
             function displayTurnInfo(currPlayer, numActions, numBuys, numTreasures) {
                 //display "Player X's Turn" 
@@ -233,9 +211,7 @@
 
             //end current player's turn: 1) send discarded cards to server, clear hand, clear hand cards in UI, disable endTurn button
             function endTurn() {
-                socketio.emit("endTurn", {cardsToDiscard: hand.concat(playedCards)});
-                playedCards = [];
-                hand = [];
+                socketio.emit("endTurn");
                 $("#hand img").remove();
                 $("#shopSection button").hide();
                 $("#endTurn").prop('disabled', true);
@@ -279,6 +255,21 @@
                 //later on verify on server side - CANNOT PLAY CARDS AFTER FIRST BUY
                 $("#hand img").removeClass("yellow-border");
                 socketio.emit("buyCard", {"cardToBuy": cardToBuy});
+            }
+
+            function updatePlayableCards(playableCards) {
+                var handCards, i, j, currentPlayableCard, currentHandCard;
+                handCards = $("#hand img");
+                for (i=0; i<playableCards.length; i++){
+                    currentPlayableCard = playableCards[i]
+                    for (j=0; j<handCards.length;j++) {
+                        currentHandCard = handCards[j];
+                        if (currentPlayableCard === currentHandCard.getAttribute("data-card")) {
+                            $(currentHandCard).addClass("yellow-border");
+                            //don't break because the cards aren't unique
+                        }
+                    }  
+                }
             }
     });
         

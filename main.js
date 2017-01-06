@@ -18,13 +18,16 @@ var gameStarted=false;
 var maxNumPlayers = 2;
 var currNumPlayers = 0
 var playerSocketIds = {};
+var playerHands = {}
 var playerDecks = {};
 var playerDiscardPile={};
+var currPlayedCards = [];
 var shop = {}; 
 var shopCards = [];
 var numActions = 1;
 var numBuys = 1;
 var numTreasures = 0;
+var currPhase = 1;
 
 var cardInfo = {
     'copper' : { cost: 0,
@@ -57,6 +60,7 @@ io.sockets.on('connection', function(socket) {
 		if (currNumPlayers < maxNumPlayers) {
 			playerSocketIds[currNumPlayers] = socket.id;
 			playerDecks[currNumPlayers] = [];
+			playerHands[currNumPlayers] = [];
 			playerDiscardPile[currNumPlayers] = [];
 			io.sockets.connected[socket.id].emit("joinGameAttempt", {success: true, name: "Player " + currNumPlayers});
 			//go in here if the last player is about to join
@@ -81,8 +85,8 @@ io.sockets.on('connection', function(socket) {
 	});
 
 	//update current player, CHECK GAME END CONDITIONS, notify all clients of current player
-	socket.on('endTurn', function(data) {
-		playerDiscardPile[currPlayer] = playerDiscardPile[currPlayer].concat(data.cardsToDiscard);
+	socket.on('endTurn', function() {
+		discardHandAndPlayedCards();
 		io.sockets.emit("output", ["Player's discard pile", playerDiscardPile[currPlayer]]); 
 		drawCards(currPlayer, 5);
 		updateCurrentPlayer();
@@ -94,6 +98,7 @@ io.sockets.on('connection', function(socket) {
 				"numBuys":numBuys, "numTreasures":numTreasures});
 		}
 		io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
+		io.sockets.connected[playerSocketIds[currPlayer]].emit("playableCards", {"playableCards": computePlayableCards()});	
 	});
 });
 
@@ -114,11 +119,11 @@ function startGame() {
 			"numActions":numActions, "numBuys":numBuys, "numTreasures":numTreasures});
 	}	
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
+	io.sockets.connected[playerSocketIds[currPlayer]].emit("playableCards", {"playableCards": computePlayableCards()});		
 }
 
 //pops of the first numCards of player's deck and send them to the player
 function drawCards(playerId, numCards) {
-	var cardsToDraw = [];
 	var socketId = playerSocketIds[playerId];
 	for (var i = 0; i < numCards; i++) {
 		if (playerDecks[playerId].length == 0) {
@@ -126,9 +131,9 @@ function drawCards(playerId, numCards) {
 			playerDiscardPile[playerId] = [];
 			//EDGE CASE if discard is empty, then stop. 
 		}
-		cardsToDraw.push(playerDecks[playerId].shift());
+		playerHands[playerId].push(playerDecks[playerId].shift());
 	}
-	io.sockets.connected[socketId].emit("cardsToDraw", {quantity: cardsToDraw.length, cards: cardsToDraw});
+	io.sockets.connected[socketId].emit("hand", {"hand": playerHands[playerId]});
 }
 
 function createStartingDeck() {
@@ -163,10 +168,13 @@ function resetTurnInfo() {
 	numBuys = 1;
 	numActions = 1;
 	numTreasures = 0;
+	currPhase = 1;
 }
 
-//resolves playing a card, sends current player list of able to be bought cards
+//assumes card is legal. resolves playing a card, sends current player list of able to be bought cards
 function resolvePlayedCard(cardName) {
+	playerHands[currPlayer].splice(playerHands[currPlayer].indexOf(cardName), 1);
+	currPlayedCards.push(cardName);
 	var card = cardInfo[cardName];
 	if (card.type === "T") {
 		numTreasures += card.value;
@@ -176,6 +184,8 @@ function resolvePlayedCard(cardName) {
 		}
 	}
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
+	io.sockets.connected[playerSocketIds[currPlayer]].emit("hand", {"hand": playerHands[currPlayer]});
+	io.sockets.connected[playerSocketIds[currPlayer]].emit("playableCards", {"playableCards": computePlayableCards()});
 }
 
 //returns a list of cards that can be purchased
@@ -197,15 +207,56 @@ function computeAbleToBePurchasedCards() {
 //assume that the everything is legal
 function buyCard(card) {
 	numBuys -= 1;
+	currPhase = 2;
 	numTreasures -= cardInfo[card].cost;
 	shop[card] -= 1;
 	playerDiscardPile[currPlayer].push(card);
 	for (playerId in playerSocketIds) {
 		var socketId = playerSocketIds[playerId];
-		io.sockets.connected[socketId].emit("resolveBuyCard", {"numBuys": numBuys, "numTreasures": numTreasures, "shop": shop});
+		io.sockets.connected[socketId].emit("resolveBuyCard", {"numBuys": numBuys, "numTreasures": numTreasures, "shop": shop, "playableCards": computePlayableCards()});
 	}
 }
 
 function canBuyCard(card) {
 	return (numBuys > 0) && (shopCards.indexOf(card) > -1) && (numTreasures >= cardInfo[card].cost) && (shop[card] > 0) 
+}
+
+function discardHandAndPlayedCards() {
+	var cardsToDiscard = playerHands[currPlayer].concat(currPlayedCards);
+	playerHands[currPlayer] = [];
+	currPlayedCards = []
+	playerDiscardPile[currPlayer] = playerDiscardPile[currPlayer].concat(cardsToDiscard);	
+}
+
+//given a playerId, returns whether or not that player's hand has treasure cards
+function hasTreasureCards(playerId) {
+	var hand = playerHands[playerId];
+    for (var i = 0; i < hand.length; i++) {
+        if (cardInfo[hand[i]].type === "T") {
+            return true;
+        }
+    }
+    return false;
+}
+
+//given a playerId, returns a list of treasure cards in that player's hand
+function getTreasureCardsInHand(playerId) {
+	var hand, i, treasureCards;
+	treasureCards = [];
+	hand = playerHands[playerId];
+	for (i = 0; i < hand.length; i++) {
+		 if (cardInfo[hand[i]].type === "T") {
+		 	treasureCards.push(hand[i]);
+		 }
+	}
+	return treasureCards;
+}
+
+function computePlayableCards() {
+	//if action phase is over
+	var playableCards = [];
+	if (currPhase == 1) {
+		playableCards = getTreasureCardsInHand(currPlayer);
+	}
+	return playableCards;
 }
