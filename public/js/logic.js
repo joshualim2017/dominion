@@ -4,20 +4,27 @@
         console.log( "document loaded" );
         var username;
         var hand = [];
+        var playedCards = [];
         var shop = {};
         var cardInfo = {
             'copper' : { src: '/cards/copper.jpg',
-                         classes: 'card cardSize'},
+                         classes: 'card cardSize',
+                         type: "T"},
             'estate' : { src: '/cards/estate.jpg',
-                         classes: 'card cardSize'},                        
+                         classes: 'card cardSize',
+                         type: "V"},                        
             'duchy' : { src: '/cards/duchy.jpg',
-                         classes: 'card cardSize'},
+                         classes: 'card cardSize',
+                         type: "V"},
             'province' : { src: '/cards/province.jpg',
-                         classes: 'card cardSize'},  
+                         classes: 'card cardSize',
+                         type: "V"},  
             'silver' : { src: '/cards/silver.jpg',
-                         classes: 'card cardSize'},
+                         classes: 'card cardSize',
+                         type: "T"},
             'gold' : { src: '/cards/gold.jpg',
-                         classes: 'card cardSize'},   
+                         classes: 'card cardSize',
+                         type: "T"},   
         }
 
 /**************************
@@ -33,9 +40,10 @@
                 endTurn();
             });
 
+            //click a buy button
+            $(document).on('click', '.ableToBuy', buyCard);
     
-            //select card - CURRENTLY NOT USED
-            $(document).on('click', '.card', selectCard);
+            $(document).on('click', '.card', playCard);
 
 /**************************
 *    END EVENT LISTENERS  *
@@ -53,8 +61,7 @@
           
             //used for testing. output[0] is descriptive string, output[1] is what you want to output
            socketio.on("output", function(output) {
-            console.log(output[0]);
-            console.log(output[1]);
+            console.log(output);
                 });
 
            socketio.on('joinGameAttempt', function(success) {
@@ -69,25 +76,32 @@
             });
 
            socketio.on('startTurn', function(data) {
+            displayTurnInfo(data.name, data.numActions, data.numBuys, data.numTreasures);
             if (data.name === username) {
                 startTurn();
             } 
-            console.log("Starting " + data.name + "'s turn.");
            });
 
-           socketio.on('startGame', function() {
+           //display shop, display turn info, start player 1's turn
+           socketio.on('startGame', function(data) {
                 startGame();
+                setUpShop(data.shop)
            });
 
-           socketio.on('shop', function(data) {
-                var cardsInShop, currentCard;
-                shop = data.shop;
-                //sort because order not guaranteed across clients
-                cardsInShop = Object.keys(data.shop).sort();
-                for (var i = 0; i < cardsInShop.length; i++) {
-                    currentCard = cardsInShop[i];
-                    displayShopCard(currentCard, shop[currentCard]);
-                }
+           socketio.on('resolvePlayedCard', function(data) {
+                //update UI for all players
+                updateTurnInfo(data.numActions, data.numBuys, data.numTreasures, data.cardPlayed);
+                //extra effect add in later for actions
+           });
+
+           socketio.on('resolveBuyCard', function(data) {
+             updateTurnInfo(undefined, data.numBuys, data.numTreasures, undefined);
+             $("#shopSection div").remove();
+             setUpShop(data.shop);
+           });
+
+           socketio.on('ableToBePurchasedCards', function(data) {
+                updateAbleToBePurchasedCards(data.ableToBePurchasedCards);
            });
 
            socketio.on('cardsToDraw', function(data) {
@@ -105,10 +119,6 @@
 ***************************/
             function joinGame() {
                 socketio.emit("joinGame");
-            }
-            function sendTest() {
-
-                socketio.emit("test");
             }
 
             function resolveJoinGameAttempt(data) { 
@@ -131,10 +141,29 @@
                 currentCard.classList.add("selected");
             }
 
+            //if LEGAL (highlighted) send card to server, remove from hand, dont' put in played cards area yet (will do it when server send it back)
+            function playCard(event){
+                var card, cardName, index;
+                card = event.target;
+                //check if highlighted
+                if (card.classList.contains('yellow-border')) {
+                    cardName = card.getAttribute("data-card");
+                    //remove from UI
+                    card.remove();
+                    //Remove from hand array
+                    index = hand.indexOf(cardName);
+                    hand.splice(index, 1);
+                    //put card into playedCards array
+                    playedCards.push(cardName);
+                    //send to server
+                    socketio.emit("playCard", {cardToPlay: cardName});
+                }
+            }
+
             //input string name of card, will convert to card object using cardInfo
             function displayHandCard(cardStr) {
                 var card = cardInfo[cardStr];
-              $("#hand").append("<img src='" + card.src + "' class='" + card.classes + "'>")
+              $("#hand").append("<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + " " +  card.type + "'>");
                 
             }
 
@@ -142,28 +171,114 @@
             function displayShopCard(cardStr, quantity) {
                 var card = cardInfo[cardStr];
 
-                 $("#shopSection").append("<div class='shopCard'>" +
-                    "<img src='" + card.src + "' class='" + card.classes + "'>" +
-                    "<p class='quantity'>" + quantity + "</p>" +
-                    "</div>")
+                 $("#shopSection").append(
+                    "<div class='shopCard'>" +
+                        "<img src='" + card.src + "' data-card='" + cardStr + "' class='" + card.classes + "'>" + 
+                        "<p class='quantity'>" + 
+                            quantity + 
+                        "</p>" +
+                        "<button class='ableToBuy' data-card='" + cardStr + "'>" +
+                            "+" +
+                        "</button>" +
+                     "</div>");
             }
+
+            //setup work for shop; input shop is an object with {shopCard : quantity}
+            function setUpShop(shopFromServer){
+                var cardsInShop, currentCard;
+                shop = shopFromServer;
+                //sort because order not guaranteed across clients
+                cardsInShop = Object.keys(shopFromServer).sort();
+                for (var i = 0; i < cardsInShop.length; i++) {
+                    currentCard = cardsInShop[i];
+                    displayShopCard(currentCard, shop[currentCard]);
+                }
+            }
+
 
             // for the clients that will begin the game, display the needed objects to start a game
             function startGame() {
+                $(".turnInfo").show();
                 $("#endTurn").show();
                 $("#endTurn").prop('disabled', true);
             }
 
             //allow client to execute turn
-            function startTurn() {
+            function startTurn(numActions, numBuys, numTreasures) {
                 $("#endTurn").prop('disabled', false);
+                //IGNORE ACTION CARDS FOR NOW
+                if (hasTreasureCards()) {
+                    $("#hand img.T").toggleClass("yellow-border");
+                    //ToDO-  play treasures button
+                }
+            }
+
+            function hasTreasureCards() {
+                for (var i = 0; i < hand.length; i++) {
+                    if (cardInfo[hand[i]].type === "T") {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            //display whose turn it is and the actions,buys,treasures and remove the cards played from last turn
+            function displayTurnInfo(currPlayer, numActions, numBuys, numTreasures) {
+                //display "Player X's Turn" 
+                $("#playedCards img").remove();
+                $("#numTreasures").prop("innerHTML", numTreasures);
+                $("#numBuys").prop("innerHTML", numBuys);
+                $("#numActions").prop("innerHTML", numActions);
+               console.log("Starting " + currPlayer + "'s turn.");
             }
 
             //end current player's turn: 1) send discarded cards to server, clear hand, clear hand cards in UI, disable endTurn button
             function endTurn() {
-                socketio.emit("endTurn", {cardsToDiscard: hand});
+                socketio.emit("endTurn", {cardsToDiscard: hand.concat(playedCards)});
+                playedCards = [];
                 hand = [];
                 $("#hand img").remove();
+                $("#shopSection button").hide();
                 $("#endTurn").prop('disabled', true);
             }
+
+            //display card in playedCards section and update A/B/T
+            function updateTurnInfo(numActions, numBuys, numTreasures, cardStr) {
+                if (cardStr !== undefined) {
+                    var card = cardInfo[cardStr];
+                    $("#playedCards").append("<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + " " +  card.type + "'>");
+                }
+                if (numActions !== undefined) {
+                    $("#numActions").prop("innerHTML", numActions);
+                } 
+                if (numBuys !== undefined) {
+                    $("#numBuys").prop("innerHTML", numBuys);
+                }
+                if (numTreasures !== undefined) {
+                    $("#numTreasures").prop("innerHTML", numTreasures);
+                }
+            }
+
+            function updateAbleToBePurchasedCards(ableToBePurchasedCards) {
+                var buyButtons, i, j, currentCard, currentButton;
+                buyButtons = $("#shopSection button");
+                for (i=0; i<ableToBePurchasedCards.length; i++ ) {
+                    currentCard = ableToBePurchasedCards[i]
+                    for (j=0; j<buyButtons.length; j++) {
+                        currentButton = buyButtons[j];
+                        if (currentCard === currentButton.getAttribute("data-card")) {
+                            $(currentButton).show();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            function buyCard(event) {
+                var cardToBuy = event.currentTarget.getAttribute("data-card");
+                $("#shopSection button").hide();
+                //later on verify on server side - CANNOT PLAY CARDS AFTER FIRST BUY
+                $("#hand img").removeClass("yellow-border");
+                socketio.emit("buyCard", {"cardToBuy": cardToBuy});
+            }
     });
+        

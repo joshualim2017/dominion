@@ -18,9 +18,34 @@ var gameStarted=false;
 var maxNumPlayers = 2;
 var currNumPlayers = 0
 var playerSocketIds = {};
-var playerDecks = {} 
-var playerDiscardPile={}
-var shop = {} 
+var playerDecks = {};
+var playerDiscardPile={};
+var shop = {}; 
+var shopCards = [];
+var numActions = 1;
+var numBuys = 1;
+var numTreasures = 0;
+
+var cardInfo = {
+    'copper' : { cost: 0,
+    		     value: 1,
+                 type: "T"},
+    'estate' : { cost: 2,
+                 classes: 'card cardSize',
+                 type: "V"},                        
+    'duchy' : { cost: 5,
+                 classes: 'card cardSize',
+                 type: "V"},
+    'province' : { cost: 8,
+                 classes: 'card cardSize',
+                 type: "V"},  
+    'silver' : { cost: 3,
+    			 value: 2,
+                 type: "T"},
+    'gold' : {   cost: 6,
+             	 value: 3,
+                 type: "T"},   
+}
 
 //END GLOBAL VARIABLES
 
@@ -43,11 +68,17 @@ io.sockets.on('connection', function(socket) {
 			io.sockets.connected[socket.id].emit("joinGameAttempt", {success: false});
 		}
 
-		// testing to make sure it works - send to clientside to see that it actually changes
-		io.sockets.emit("output", ["List of players/accepted sockets", playerSocketIds]); 
-
 	});
 
+	socket.on('playCard', function(data) {
+		resolvePlayedCard(data.cardToPlay);
+	});
+
+	socket.on('buyCard', function(data) {
+		if (canBuyCard(data.cardToBuy)) {
+			buyCard(data.cardToBuy);
+		}
+	});
 
 	//update current player, CHECK GAME END CONDITIONS, notify all clients of current player
 	socket.on('endTurn', function(data) {
@@ -55,11 +86,14 @@ io.sockets.on('connection', function(socket) {
 		io.sockets.emit("output", ["Player's discard pile", playerDiscardPile[currPlayer]]); 
 		drawCards(currPlayer, 5);
 		updateCurrentPlayer();
+		resetTurnInfo();
 		//CHECK END CONDITIONS
 		for (playerId in playerSocketIds) {
 			var socketId = playerSocketIds[playerId];
-			io.sockets.connected[socketId].emit("startTurn", {name: "Player " + currPlayer});
+			io.sockets.connected[socketId].emit("startTurn", {"name": "Player " + currPlayer, "numActions":numActions, 
+				"numBuys":numBuys, "numTreasures":numTreasures});
 		}
+		io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
 	});
 });
 
@@ -75,10 +109,11 @@ function startGame() {
 		playerDecks[playerId] = createStartingDeck();
 		drawCards(playerId,5);
 		initializeDefaultShop();
-		io.sockets.connected[socketId].emit("shop", {"shop": shop}),
-		io.sockets.connected[socketId].emit("startGame");
-		io.sockets.connected[socketId].emit("startTurn", {name: "Player " + currPlayer});
+		io.sockets.connected[socketId].emit("startGame", {"shop": shop});
+		io.sockets.connected[socketId].emit("startTurn", {name: "Player " + currPlayer, 
+			"numActions":numActions, "numBuys":numBuys, "numTreasures":numTreasures});
 	}	
+	io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
 }
 
 //pops of the first numCards of player's deck and send them to the player
@@ -117,7 +152,60 @@ function shuffleDeck(arr) {
 	return shuffledDeck;
 }
 
-//initialize default shop; changes global variable, does not return anything
+//initialize default shop; changes 2 global variables - shop and shopCards, does not return anything
 function initializeDefaultShop() {
 	shop = {"copper": 40, "estate": 8, "duchy": 8, "province": 8, "silver": 40, "gold": 40};
+	shopCards = Object.keys(shop);
+}
+
+//reset buys, actions, treasures
+function resetTurnInfo() {
+	numBuys = 1;
+	numActions = 1;
+	numTreasures = 0;
+}
+
+//resolves playing a card, sends current player list of able to be bought cards
+function resolvePlayedCard(cardName) {
+	var card = cardInfo[cardName];
+	if (card.type === "T") {
+		numTreasures += card.value;
+		for (playerId in playerSocketIds) {
+			var socketId = playerSocketIds[playerId];
+			io.sockets.connected[socketId].emit("resolvePlayedCard", {"cardPlayed": cardName, "numTreasures": numTreasures});
+		}
+	}
+	io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
+}
+
+//returns a list of cards that can be purchased
+function computeAbleToBePurchasedCards() {
+	var ableToBePurchasedCards, currCard, i;
+	ableToBePurchasedCards = [];
+	if (numBuys > 0) {
+		for (i = 0; i < shopCards.length; i++) {
+			currCard = shopCards[i];
+			//enough money AND card still available
+			if (numTreasures >= cardInfo[currCard].cost && shop[currCard] > 0) {
+				ableToBePurchasedCards.push(currCard);
+			}
+		}
+	}
+	return ableToBePurchasedCards;
+}
+
+//assume that the everything is legal
+function buyCard(card) {
+	numBuys -= 1;
+	numTreasures -= cardInfo[card].cost;
+	shop[card] -= 1;
+	playerDiscardPile[currPlayer].push(card);
+	for (playerId in playerSocketIds) {
+		var socketId = playerSocketIds[playerId];
+		io.sockets.connected[socketId].emit("resolveBuyCard", {"numBuys": numBuys, "numTreasures": numTreasures, "shop": shop});
+	}
+}
+
+function canBuyCard(card) {
+	return (numBuys > 0) && (shopCards.indexOf(card) > -1) && (numTreasures >= cardInfo[card].cost) && (shop[card] > 0) 
 }
