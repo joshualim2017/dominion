@@ -51,6 +51,15 @@ var cardInfo = {
     'smithy' : {  cost: 4,
                  type: "A",
                  turnEffect: {card:3}},
+    'market' : {  cost: 5,
+                 type: "A",
+                 turnEffect: {card:1, action: 1, treasure:1, buy:1}},
+    'laboratory' : {  cost: 5,
+                 type: "A",
+                 turnEffect: {card:2, action:1}},
+    'festival' : {  cost: 5,
+                 type: "A",
+                 turnEffect: {action:2, treasure:2, buy: 1}},
     'woodcutter' : {cost: 3,
                  type: "A",
              	turnEffect: {buy: 1, treasure:2}},
@@ -166,7 +175,7 @@ function shuffleDeck(arr) {
 
 //initialize default shop; changes 2 global variables - shop and shopCards, does not return anything
 function initializeDefaultShop() {
-	shop = {"copper": 40, "estate": 8, "duchy": 8, "province": 8, "silver": 40, "gold": 40, "village":10, "woodcutter":10, "smithy":10};
+	shop = {"copper": 40, "estate": 8, "duchy": 8, "province": 8, "silver": 40, "gold": 40, "village":10, "woodcutter":10, "smithy":10, "market":10, "laboratory": 10, "festival": 10};
 	shopCards = Object.keys(shop);
 }
 

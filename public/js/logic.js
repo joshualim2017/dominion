@@ -21,6 +21,12 @@
              'woodcutter' : { src: '/cards/woodcutter.jpg',
                          classes: 'card cardSize'},   
              'village' : { src: '/cards/village.jpg',
+                         classes: 'card cardSize'},  
+             'market' : { src: '/cards/market.jpg',
+                         classes: 'card cardSize'},  
+             'laboratory' : { src: '/cards/laboratory.jpg',
+                         classes: 'card cardSize'},  
+             'festival' : { src: '/cards/festival.jpg',
                          classes: 'card cardSize'}, 
         }
 
