@@ -5,23 +5,29 @@
         var username;
         var cardInfo = {
             'copper' : { src: '/cards/copper.jpg',
-                         classes: 'card cardSize',
-                         type: "T"},
+                         classes: 'card cardSize'},
             'estate' : { src: '/cards/estate.jpg',
-                         classes: 'card cardSize',
-                         type: "V"},                        
+                         classes: 'card cardSize'},                        
             'duchy' : { src: '/cards/duchy.jpg',
-                         classes: 'card cardSize',
-                         type: "V"},
+                         classes: 'card cardSize'},
             'province' : { src: '/cards/province.jpg',
-                         classes: 'card cardSize',
-                         type: "V"},  
+                         classes: 'card cardSize'},  
             'silver' : { src: '/cards/silver.jpg',
-                         classes: 'card cardSize',
-                         type: "T"},
+                         classes: 'card cardSize'},
             'gold' : { src: '/cards/gold.jpg',
-                         classes: 'card cardSize',
-                         type: "T"},   
+                         classes: 'card cardSize'},   
+             'smithy' : { src: '/cards/smithy.jpg',
+                         classes: 'card cardSize'},  
+             'woodcutter' : { src: '/cards/woodcutter.jpg',
+                         classes: 'card cardSize'},   
+             'village' : { src: '/cards/village.jpg',
+                         classes: 'card cardSize'},  
+             'market' : { src: '/cards/market.jpg',
+                         classes: 'card cardSize'},  
+             'laboratory' : { src: '/cards/laboratory.jpg',
+                         classes: 'card cardSize'},  
+             'festival' : { src: '/cards/festival.jpg',
+                         classes: 'card cardSize'}, 
         }
 
 /**************************
@@ -91,6 +97,7 @@
              $("#shopSection div").remove();
              setUpShop(data.shop);
              updatePlayableCards(data.playableCards);
+             updateAbleToBePurchasedCards(data.ableToBePurchasedCards);
            });
 
            socketio.on('ableToBePurchasedCards', function(data) {
@@ -153,7 +160,7 @@
             //input string name of card, will convert to card object using cardInfo
             function displayHandCard(cardStr) {
                 var card = cardInfo[cardStr];
-              $("#hand").append("<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + " " +  card.type + "'>");
+              $("#hand").append("<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + "'>");
                 
             }
 
@@ -221,7 +228,7 @@
             function updateTurnInfo(numActions, numBuys, numTreasures, cardStr) {
                 if (cardStr !== undefined) {
                     var card = cardInfo[cardStr];
-                    $("#playedCards").append("<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + " " +  card.type + "'>");
+                    $("#playedCards").append("<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + "'>");
                 }
                 if (numActions !== undefined) {
                     $("#numActions").prop("innerHTML", numActions);

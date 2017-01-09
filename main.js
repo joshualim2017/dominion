@@ -27,27 +27,43 @@ var shopCards = [];
 var numActions = 1;
 var numBuys = 1;
 var numTreasures = 0;
-var currPhase = 1;
+var currPhase = 0;
 
 var cardInfo = {
     'copper' : { cost: 0,
     		     value: 1,
                  type: "T"},
     'estate' : { cost: 2,
-                 classes: 'card cardSize',
                  type: "V"},                        
     'duchy' : { cost: 5,
-                 classes: 'card cardSize',
                  type: "V"},
     'province' : { cost: 8,
-                 classes: 'card cardSize',
                  type: "V"},  
     'silver' : { cost: 3,
     			 value: 2,
                  type: "T"},
     'gold' : {   cost: 6,
              	 value: 3,
-                 type: "T"},   
+                 type: "T"},
+    'village' : { cost: 3,
+                 type: "A",
+             	 turnEffect: {action: 2, card: 1}},
+    'smithy' : {  cost: 4,
+                 type: "A",
+                 turnEffect: {card:3}},
+    'market' : {  cost: 5,
+                 type: "A",
+                 turnEffect: {card:1, action: 1, treasure:1, buy:1}},
+    'laboratory' : {  cost: 5,
+                 type: "A",
+                 turnEffect: {card:2, action:1}},
+    'festival' : {  cost: 5,
+                 type: "A",
+                 turnEffect: {action:2, treasure:2, buy: 1}},
+    'woodcutter' : {cost: 3,
+                 type: "A",
+             	turnEffect: {buy: 1, treasure:2}},
+
 }
 
 //END GLOBAL VARIABLES
@@ -159,7 +175,7 @@ function shuffleDeck(arr) {
 
 //initialize default shop; changes 2 global variables - shop and shopCards, does not return anything
 function initializeDefaultShop() {
-	shop = {"copper": 40, "estate": 8, "duchy": 8, "province": 8, "silver": 40, "gold": 40};
+	shop = {"copper": 40, "estate": 8, "duchy": 8, "province": 8, "silver": 40, "gold": 40, "village":10, "woodcutter":10, "smithy":10, "market":10, "laboratory": 10, "festival": 10};
 	shopCards = Object.keys(shop);
 }
 
@@ -168,7 +184,7 @@ function resetTurnInfo() {
 	numBuys = 1;
 	numActions = 1;
 	numTreasures = 0;
-	currPhase = 1;
+	currPhase = 0;
 }
 
 //assumes card is legal. resolves playing a card, sends current player list of able to be bought cards
@@ -176,6 +192,17 @@ function resolvePlayedCard(cardName) {
 	playerHands[currPlayer].splice(playerHands[currPlayer].indexOf(cardName), 1);
 	currPlayedCards.push(cardName);
 	var card = cardInfo[cardName];
+	if (card.type === "A") {
+		numActions -= 1;
+		editTurnInfo(card.turnEffect);
+		if (numActions == 0) {
+			currPhase = 1;
+		}
+		for (playerId in playerSocketIds) {
+			var socketId = playerSocketIds[playerId];
+			io.sockets.connected[socketId].emit("resolvePlayedCard", {"cardPlayed": cardName, "numTreasures": numTreasures, "numActions": numActions, "numBuys": numBuys});
+		}
+	}
 	if (card.type === "T") {
 		numTreasures += card.value;
 		for (playerId in playerSocketIds) {
@@ -213,7 +240,8 @@ function buyCard(card) {
 	playerDiscardPile[currPlayer].push(card);
 	for (playerId in playerSocketIds) {
 		var socketId = playerSocketIds[playerId];
-		io.sockets.connected[socketId].emit("resolveBuyCard", {"numBuys": numBuys, "numTreasures": numTreasures, "shop": shop, "playableCards": computePlayableCards()});
+		io.sockets.connected[socketId].emit("resolveBuyCard", {"numBuys": numBuys, "numTreasures": numTreasures, "shop": shop, 
+																"playableCards": computePlayableCards(), "ableToBePurchasedCards": computeAbleToBePurchasedCards()});
 	}
 }
 
@@ -228,24 +256,24 @@ function discardHandAndPlayedCards() {
 	playerDiscardPile[currPlayer] = playerDiscardPile[currPlayer].concat(cardsToDiscard);	
 }
 
-//given a playerId, returns whether or not that player's hand has treasure cards
-function hasTreasureCards(playerId) {
+//given a playerId, returns whether or not that player's hand has TYPE cards
+function hasTypeCards(playerId, type) {
 	var hand = playerHands[playerId];
     for (var i = 0; i < hand.length; i++) {
-        if (cardInfo[hand[i]].type === "T") {
+        if (cardInfo[hand[i]].type === type) {
             return true;
         }
     }
     return false;
 }
 
-//given a playerId, returns a list of treasure cards in that player's hand
-function getTreasureCardsInHand(playerId) {
+//given a playerId, returns a list of TYPE cards in that player's hand
+function getTypeCardsInHand(playerId, type) {
 	var hand, i, treasureCards;
 	treasureCards = [];
 	hand = playerHands[playerId];
 	for (i = 0; i < hand.length; i++) {
-		 if (cardInfo[hand[i]].type === "T") {
+		 if (cardInfo[hand[i]].type === type) {
 		 	treasureCards.push(hand[i]);
 		 }
 	}
@@ -255,8 +283,30 @@ function getTreasureCardsInHand(playerId) {
 function computePlayableCards() {
 	//if action phase is over
 	var playableCards = [];
-	if (currPhase == 1) {
-		playableCards = getTreasureCardsInHand(currPlayer);
+	if (currPhase === 0) {
+		if (hasTypeCards(currPlayer, "A") == false) {
+			currPhase = 1;
+		} else {
+			playableCards = getTypeCardsInHand(currPlayer, "A");
+		}
+	}
+	if (currPhase === 1) {
+		playableCards = getTypeCardsInHand(currPlayer, "T");
 	}
 	return playableCards;
+}
+
+function editTurnInfo(turnEffect) {
+	if (turnEffect.treasure !== undefined) {
+		numTreasures += turnEffect.treasure;
+	}
+	if (turnEffect.buy !== undefined) {
+		numBuys += turnEffect.buy;
+	}
+	if (turnEffect.action !== undefined) {
+		numActions += turnEffect.action;
+	}
+	if (turnEffect.card !== undefined) {
+		drawCards(currPlayer, turnEffect.card);
+	}	
 }
