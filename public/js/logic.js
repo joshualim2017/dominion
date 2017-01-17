@@ -74,7 +74,7 @@
             });
 
            socketio.on('startTurn', function(data) {
-            displayTurnInfo(data.name, data.numActions, data.numBuys, data.numTreasures);
+            displayTurnInfo(data.name, data.numActions, data.numBuys, data.numTreasures, data.actionText);
             if (data.name === username) {
                 startTurn();
             } 
@@ -88,12 +88,12 @@
 
            socketio.on('resolvePlayedCard', function(data) {
                 //update UI for all players
-                updateTurnInfo(data.numActions, data.numBuys, data.numTreasures, data.cardPlayed);
+                updateTurnInfo(data.numActions, data.numBuys, data.numTreasures, data.cardPlayed, data.actionText);
                 //extra effect add in later for actions
            });
 
            socketio.on('resolveBuyCard', function(data) {
-             updateTurnInfo(undefined, data.numBuys, data.numTreasures, undefined);
+             updateTurnInfo(undefined, data.numBuys, data.numTreasures, undefined, data.actionText);
              $("#shopSection div").remove();
              setUpShop(data.shop);
              updatePlayableCards(data.playableCards);
@@ -207,9 +207,9 @@
 
 
             //display whose turn it is and the actions,buys,treasures and remove the cards played from last turn
-            function displayTurnInfo(currPlayer, numActions, numBuys, numTreasures) {
-                //display "Player X's Turn" 
+            function displayTurnInfo(currPlayer, numActions, numBuys, numTreasures, actionText) {              
                 $("#playedCards img").remove();
+                $("#actionText").prop("innerHTML", actionText);
                 $("#numTreasures").prop("innerHTML", numTreasures);
                 $("#numBuys").prop("innerHTML", numBuys);
                 $("#numActions").prop("innerHTML", numActions);
@@ -225,7 +225,7 @@
             }
 
             //display card in playedCards section and update A/B/T
-            function updateTurnInfo(numActions, numBuys, numTreasures, cardStr) {
+            function updateTurnInfo(numActions, numBuys, numTreasures, cardStr, actionText) {
                 if (cardStr !== undefined) {
                     var card = cardInfo[cardStr];
                     $("#playedCards").append("<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + "'>");
@@ -238,6 +238,9 @@
                 }
                 if (numTreasures !== undefined) {
                     $("#numTreasures").prop("innerHTML", numTreasures);
+                }
+                if (actionText !== undefined) {
+                    $("#actionText").prop("innerHTML", actionText);
                 }
             }
 
