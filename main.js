@@ -111,7 +111,7 @@ io.sockets.on('connection', function(socket) {
 		for (playerId in playerSocketIds) {
 			var socketId = playerSocketIds[playerId];
 			io.sockets.connected[socketId].emit("startTurn", {"name": "Player " + currPlayer, "numActions":numActions, 
-				"numBuys":numBuys, "numTreasures":numTreasures});
+				"numBuys":numBuys, "numTreasures":numTreasures, actionText:createActionText(currPlayer, "turn", "")});
 		}
 		io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
 		io.sockets.connected[playerSocketIds[currPlayer]].emit("playableCards", {"playableCards": computePlayableCards()});	
@@ -132,7 +132,7 @@ function startGame() {
 		initializeDefaultShop();
 		io.sockets.connected[socketId].emit("startGame", {"shop": shop});
 		io.sockets.connected[socketId].emit("startTurn", {name: "Player " + currPlayer, 
-			"numActions":numActions, "numBuys":numBuys, "numTreasures":numTreasures});
+			"numActions":numActions, "numBuys":numBuys, "numTreasures":numTreasures, actionText:createActionText(currPlayer, "turn", "")});
 	}	
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("playableCards", {"playableCards": computePlayableCards()});		
@@ -200,14 +200,15 @@ function resolvePlayedCard(cardName) {
 		}
 		for (playerId in playerSocketIds) {
 			var socketId = playerSocketIds[playerId];
-			io.sockets.connected[socketId].emit("resolvePlayedCard", {"cardPlayed": cardName, "numTreasures": numTreasures, "numActions": numActions, "numBuys": numBuys});
+			io.sockets.connected[socketId].emit("resolvePlayedCard", {"cardPlayed": cardName, "numTreasures": numTreasures, 
+				"numActions": numActions, "numBuys": numBuys, actionText: createActionText(currPlayer, "playCard", cardName)});
 		}
 	}
 	if (card.type === "T") {
 		numTreasures += card.value;
 		for (playerId in playerSocketIds) {
 			var socketId = playerSocketIds[playerId];
-			io.sockets.connected[socketId].emit("resolvePlayedCard", {"cardPlayed": cardName, "numTreasures": numTreasures});
+			io.sockets.connected[socketId].emit("resolvePlayedCard", {"cardPlayed": cardName, "numTreasures": numTreasures, actionText: createActionText(currPlayer, "playCard", cardName)});
 		}
 	}
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
@@ -241,7 +242,8 @@ function buyCard(card) {
 	for (playerId in playerSocketIds) {
 		var socketId = playerSocketIds[playerId];
 		io.sockets.connected[socketId].emit("resolveBuyCard", {"numBuys": numBuys, "numTreasures": numTreasures, "shop": shop, 
-																"playableCards": computePlayableCards(), "ableToBePurchasedCards": computeAbleToBePurchasedCards()});
+																"playableCards": computePlayableCards(), "ableToBePurchasedCards": computeAbleToBePurchasedCards(),
+																actionText: createActionText(currPlayer, "gainCard", card)});
 	}
 }
 
@@ -309,4 +311,17 @@ function editTurnInfo(turnEffect) {
 	if (turnEffect.card !== undefined) {
 		drawCards(currPlayer, turnEffect.card);
 	}	
+}
+
+
+function createActionText(playerId, type, card) {
+	if (type === "playCard"){ 
+		return "Player " + playerId + " played " + card + ".";
+	}
+	if (type === "gainCard") {
+		return "Player " + playerId + " gained " + card + ".";
+	}
+	if (type === "turn") {
+		return "Player " + playerId + "'s turn.";
+	}
 }

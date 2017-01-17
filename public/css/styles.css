@@ -70,7 +70,7 @@ left: 148px;
 
 #playedCards {
 	position: absolute;
-	top:10px;
+	top:50px;
 	left:150px;
 }
 
@@ -85,6 +85,12 @@ left: 148px;
 	position: relative;
 	height: 250px;
 	background-color: red;
+}
+
+#actionText {
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%); 
 }
 
 #handTrashSection {
