@@ -110,7 +110,7 @@
 
            socketio.on('hand', function(data) {
                 var card;
-                $("#hand img").remove();
+                $("#hand div").remove();
                 for (var i =0; i <data.hand.length; i++) {
                     card = data.hand[i];
                     displayHandCard(card);
@@ -160,7 +160,9 @@
             //input string name of card, will convert to card object using cardInfo
             function displayHandCard(cardStr) {
                 var card = cardInfo[cardStr];
-              $("#hand").append("<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + "'>");
+              $("#hand").append("<div class='card-wrapper'>" +
+                                 "<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + "'>" + 
+                                "</div>");
                 
             }
 
@@ -169,7 +171,7 @@
                 var card = cardInfo[cardStr];
 
                  $("#shopSection").append(
-                    "<div class='shopCard'>" +
+                    "<div class='card-wrapper'>" +
                         "<img src='" + card.src + "' data-card='" + cardStr + "' class='" + card.classes + "'>" + 
                         "<p class='quantity'>" + 
                             quantity + 
@@ -208,7 +210,7 @@
 
             //display whose turn it is and the actions,buys,treasures and remove the cards played from last turn
             function displayTurnInfo(currPlayer, numActions, numBuys, numTreasures, actionText) {              
-                $("#playedCards img").remove();
+                $("#playedCards div").remove();
                 $("#actionText").prop("innerHTML", actionText);
                 $("#numTreasures").prop("innerHTML", numTreasures);
                 $("#numBuys").prop("innerHTML", numBuys);
@@ -219,7 +221,7 @@
             //end current player's turn: 1) send discarded cards to server, clear hand, clear hand cards in UI, disable endTurn button
             function endTurn() {
                 socketio.emit("endTurn");
-                $("#hand img").remove();
+                $("#hand div").remove();
                 $("#shopSection button").hide();
                 $("#endTurn").prop('disabled', true);
             }
@@ -228,7 +230,9 @@
             function updateTurnInfo(numActions, numBuys, numTreasures, cardStr, actionText) {
                 if (cardStr !== undefined) {
                     var card = cardInfo[cardStr];
-                    $("#playedCards").append("<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + "'>");
+                    $("#playedCards").append("<div class='card-wrapper'>" + 
+                                                "<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + "'>" + 
+                                              "</div>");
                 }
                 if (numActions !== undefined) {
                     $("#numActions").prop("innerHTML", numActions);
