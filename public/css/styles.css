@@ -111,10 +111,18 @@ width: 80%;
 	transform: translateX(-50%);
 }
 
-#endTurn {
+#button0 {
 	position: absolute;
-	top:50%;
-	right:5%;
+	top:33%;
+	right:7.5%;
+    transform: translate(50%,-50%);
+	display:none;
+}
+
+#button1 {
+	position: absolute;
+	top:66%;
+	right:7.5%;
     transform: translate(50%,-50%);
 	display:none;
 }

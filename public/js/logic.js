@@ -28,6 +28,8 @@
                          classes: 'card cardSize'},  
              'festival' : { src: '/cards/festival.jpg',
                          classes: 'card cardSize'}, 
+             'chapel' : { src: '/cards/chapel.jpg',
+                         classes: 'card cardSize'},                          
         }
 
 /**************************
@@ -39,14 +41,14 @@
             });  
 
             //click end turn button
-            $("#endTurn").click(function() {
-                endTurn();
+            $("#button0").click(function() {
+                socketio.emit("button", {button: 0});
             });
 
             //click a buy button
             $(document).on('click', '.ableToBuy', buyCard);
     
-            $(document).on('click', '.card', playCard);
+            $(document).on('click', '.card', selectCard);
 
 /**************************
 *    END EVENT LISTENERS  *
@@ -117,6 +119,10 @@
                 }
            });
 
+           socketio.on('endedTurn', function() {
+            endTurn();
+           });
+
 
 /**************************
 *  END SOCKET LISTENERS  *
@@ -136,24 +142,15 @@
               $("#joinGame").prop('disabled', true);
             }
 
-            function selectCard(event) {
-                var currentCard = event.target;
-                var currentSelected = $(".selected");
-                for (var i=0; i < currentSelected.length; i++) {
-                    currentSelected[i].classList.remove("selected");
-                }
-                currentCard.classList.add("selected");
-            }
-
             //if LEGAL (highlighted) send card to server, remove from hand, dont' put in played cards area yet (will do it when server send it back)
-            function playCard(event){
+            function selectCard(event){
                 var card, cardName, index;
                 card = event.target;
                 //check if highlighted
                 if (card.classList.contains('yellow-border')) {
                     cardName = card.getAttribute("data-card");
                     //send to server
-                    socketio.emit("playCard", {cardToPlay: cardName});
+                    socketio.emit("selectCard", {cardToPlay: cardName});
                 }
             }
 
@@ -197,13 +194,13 @@
             // for the clients that will begin the game, display the needed objects to start a game
             function startGame() {
                 $(".turnInfo").show();
-                $("#endTurn").show();
-                $("#endTurn").prop('disabled', true);
+                $("#button0").show();
+                $("#button0").prop('disabled', true);
             }
 
             //allow client to execute turn
             function startTurn(numActions, numBuys, numTreasures) {
-                $("#endTurn").prop('disabled', false);
+                $("#button0").prop('disabled', false);
                 //IGNORE ACTION CARDS FOR NOW
             }
 
@@ -220,10 +217,9 @@
 
             //end current player's turn: 1) send discarded cards to server, clear hand, clear hand cards in UI, disable endTurn button
             function endTurn() {
-                socketio.emit("endTurn");
                 $("#hand div").remove();
                 $("#shopSection button").hide();
-                $("#endTurn").prop('disabled', true);
+                $("#button0").prop('disabled', true);
             }
 
             //display card in playedCards section and update A/B/T
