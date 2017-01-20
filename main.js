@@ -67,9 +67,12 @@ var cardInfo = {
              	turnEffect: {buy: 1, treasure:2}},
     'chapel' :  {cost: 2,
                  type: "A",
-             	 special: "chapel"},
+             	 special: "chapel",
+             	 default: 4,
+             	 current: 4},
 
 }
+
 
 //END GLOBAL VARIABLES
 
@@ -162,10 +165,13 @@ function startGame() {
 function drawCards(playerId, numCards) {
 	var socketId = playerSocketIds[playerId];
 	for (var i = 0; i < numCards; i++) {
-		if (playerDecks[playerId].length == 0) {
+		if (playerDecks[playerId].length === 0) {
+			if (playerDiscardPile[playerId].length ===0) {
+				//exit for loop because cannot draw any more
+				break;
+			}
 			playerDecks[playerId] = shuffleDeck(playerDiscardPile[playerId]);
 			playerDiscardPile[playerId] = [];
-			//EDGE CASE if discard is empty, then stop. 
 		}
 		playerHands[playerId].push(playerDecks[playerId].shift());
 	}
@@ -174,6 +180,7 @@ function drawCards(playerId, numCards) {
 
 function createStartingDeck() {
 	var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate'];
+		// var deck = ['copper','village','estate','estate','chapel'];
 	return shuffleDeck(deck);
 }
 
@@ -249,6 +256,9 @@ function resolvePlayedCard(cardName) {
 function computeAbleToBePurchasedCards() {
 	var ableToBePurchasedCards, currCard, i;
 	ableToBePurchasedCards = [];
+	if (currPhase === "cardPhase") {
+		return ableToBePurchasedCards;
+	}
 	if (numBuys > 0) {
 		for (i = 0; i < shopCards.length; i++) {
 			currCard = shopCards[i];
@@ -304,6 +314,8 @@ function getTypeCardsInHand(playerId, type) {
 	var hand, i, treasureCards;
 	treasureCards = [];
 	hand = playerHands[playerId];
+
+		io.sockets.connected[playerSocketIds[currPlayer]].emit("output", [hand, playerId + "'s hand"]);
 	for (i = 0; i < hand.length; i++) {
 		 if (cardInfo[hand[i]].type === type) {
 		 	treasureCards.push(hand[i]);
@@ -315,6 +327,9 @@ function getTypeCardsInHand(playerId, type) {
 function computePlayableCards() {
 	//if action phase is over
 	var playableCards = [];
+	if (currPhase === "cardPhase") {
+		return computePlayableCardSpecialPhase();
+	}
 	if (currPhase === "actionPhase") {
 		if (hasTypeCards(currPlayer, "A") == false) {
 			currPhase = "treasurePhase";
@@ -326,6 +341,12 @@ function computePlayableCards() {
 		playableCards = getTypeCardsInHand(currPlayer, "T");
 	}
 	return playableCards;
+}
+
+function computePlayableCardSpecialPhase() {
+	if (currCardPhase === "chapel") {
+		return playerHands[currPlayer];
+	}
 }
 
 function applyBasicCardEffects(turnEffect) {
@@ -347,12 +368,17 @@ function applyAdvancedCardEffects(cardName) {
 	currPhase = "cardPhase";
 	currCardPhase = cardName;
 	if (cardName === "chapel") {
-		
+		io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {actionText: createActionText(currPlayer, "prompt", cardName), button0: "Done Trashing" });
 		//action text & Done Trashing
 	}
 }
 
 function createActionText(playerId, type, card) {
+	if (type === "prompt") {
+		if (card === "chapel") {
+			return "Trash up to 4 cards.";
+		}
+	}
 	if (type === "playCard"){ 
 		return "Player " + playerId + " played " + card + ".";
 	}
@@ -361,5 +387,35 @@ function createActionText(playerId, type, card) {
 	}
 	if (type === "turn") {
 		return "Player " + playerId + "'s turn.";
+	}
+}
+
+//inputType: button or card. inputName: 0 or 1 for button, cardname for card
+function resolveSpecialCase(inputType, inputName) {
+	if (currCardPhase === "chapel") {
+		if (inputType === "card") {
+			playerHands[currPlayer].splice(playerHands[currPlayer].indexOf(inputName), 1);
+			trash.push(inputName);
+			cardInfo[currCardPhase].current = cardInfo[currCardPhase].current - 1;
+		}
+		if ((inputType === "button" && inputName === 0) || (cardInfo[currCardPhase].current === 0)){
+			cardInfo[currCardPhase].current = cardInfo[currCardPhase].default;
+			removeCardPhase();
+			io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {actionText: createActionText(currPlayer, "turn", undefined), button0: "End Turn" });
+		}
+		
+	}
+	io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
+	io.sockets.connected[playerSocketIds[currPlayer]].emit("hand", {"hand": playerHands[currPlayer]});
+	io.sockets.connected[playerSocketIds[currPlayer]].emit("playableCards", {"playableCards": computePlayableCards()});
+		io.sockets.connected[playerSocketIds[currPlayer]].emit("output", trash);
+}
+
+function removeCardPhase() {
+	currCardPhase = "";
+	if (numActions > 0) {
+		currPhase = "actionPhase";
+	} else {
+		currPhase = "treasurePhase";
 	}
 }

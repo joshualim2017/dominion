@@ -98,8 +98,6 @@
              updateTurnInfo(undefined, data.numBuys, data.numTreasures, undefined, data.actionText);
              $("#shopSection div").remove();
              setUpShop(data.shop);
-             updatePlayableCards(data.playableCards);
-             updateAbleToBePurchasedCards(data.ableToBePurchasedCards);
            });
 
            socketio.on('ableToBePurchasedCards', function(data) {
@@ -109,6 +107,15 @@
            socketio.on('playableCards', function(data) {
                 updatePlayableCards(data.playableCards);
            });
+
+
+           socketio.on('actionTextAndButton', function(data) {
+                updateTurnInfo(undefined, undefined, undefined, undefined, data.actionText);
+                updateButtons(data.button0, data.button1);
+                
+           });
+
+
 
            socketio.on('hand', function(data) {
                 var card;
@@ -150,7 +157,7 @@
                 if (card.classList.contains('yellow-border')) {
                     cardName = card.getAttribute("data-card");
                     //send to server
-                    socketio.emit("selectCard", {cardToPlay: cardName});
+                    socketio.emit("selectCard", {selectedCard: cardName});
                 }
             }
 
@@ -246,6 +253,8 @@
 
             function updateAbleToBePurchasedCards(ableToBePurchasedCards) {
                 var buyButtons, i, j, currentCard, currentButton;
+                //clear everything first
+                $("#shopSection button").hide();
                 buyButtons = $("#shopSection button");
                 for (i=0; i<ableToBePurchasedCards.length; i++ ) {
                     currentCard = ableToBePurchasedCards[i]
@@ -279,6 +288,18 @@
                             //don't break because the cards aren't unique
                         }
                     }  
+                }
+            }
+
+            function updateButtons(button0, button1) {
+                if (button0 !== undefined) {
+                    $("#button0").prop("innerHTML", button0);
+                    $("#button0").prop('disabled', false);
+                }
+                if (button1 !== undefined) {
+                    $("#button1").show();
+                    $("#button1").prop("innerHTML", button1);
+                    $("#button1").prop('disabled', false);
                 }
             }
     });
