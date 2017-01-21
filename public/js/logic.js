@@ -29,6 +29,8 @@
              'festival' : { src: '/cards/festival.jpg',
                          classes: 'card cardSize'}, 
              'chapel' : { src: '/cards/chapel.jpg',
+                         classes: 'card cardSize'},
+             'feast' : { src: '/cards/feast.jpg',
                          classes: 'card cardSize'},                          
         }
 
@@ -96,7 +98,7 @@
 
            socketio.on('resolveBuyCard', function(data) {
              updateTurnInfo(undefined, data.numBuys, data.numTreasures, undefined, data.actionText);
-             $("#shopSection div").remove();
+             
              setUpShop(data.shop);
            });
 
@@ -115,6 +117,9 @@
                 
            });
 
+           socketio.on('updateShop', function(data) {
+                setUpShop(data.shop);
+           });
 
 
            socketio.on('hand', function(data) {
@@ -124,6 +129,11 @@
                     card = data.hand[i];
                     displayHandCard(card);
                 }
+           });
+
+        //for feast
+            socketio.on('removeLastCardInPlayedCardsZone', function() {
+                $("#playedCards div").last().remove()
            });
 
            socketio.on('endedTurn', function() {
@@ -189,6 +199,8 @@
             //setup work for shop; input shop is an object with {shopCard : quantity}
             function setUpShop(shopFromServer){
                 var cardsInShop, currentCard;
+                //clear all cards in shop first
+                $("#shopSection div").remove();
                 //sort because order not guaranteed across clients
                 cardsInShop = Object.keys(shopFromServer).sort();
                 for (var i = 0; i < cardsInShop.length; i++) {
@@ -219,7 +231,6 @@
                 $("#numTreasures").prop("innerHTML", numTreasures);
                 $("#numBuys").prop("innerHTML", numBuys);
                 $("#numActions").prop("innerHTML", numActions);
-               console.log("Starting " + currPlayer + "'s turn.");
             }
 
             //end current player's turn: 1) send discarded cards to server, clear hand, clear hand cards in UI, disable endTurn button
