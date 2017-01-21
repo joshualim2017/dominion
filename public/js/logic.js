@@ -31,7 +31,17 @@
              'chapel' : { src: '/cards/chapel.jpg',
                          classes: 'card cardSize'},
              'feast' : { src: '/cards/feast.jpg',
-                         classes: 'card cardSize'},                          
+                         classes: 'card cardSize'},  
+             'remodel' : { src: '/cards/remodel.jpg',
+                         classes: 'card cardSize'},   
+             'moneylender' : { src: '/cards/moneylender.jpg',
+                         classes: 'card cardSize'},
+             'cellar' : { src: '/cards/cellar.jpg',
+                         classes: 'card cardSize'},
+             'workshop' : { src: '/cards/workshop.jpg',
+                         classes: 'card cardSize'},
+             'mine' : { src: '/cards/mine.jpg',
+                         classes: 'card cardSize'},                     
         }
 
 /**************************
@@ -303,11 +313,17 @@
             }
 
             function updateButtons(button0, button1) {
-                if (button0 !== undefined) {
+                if (typeof button0 === "boolean") {
+                    button0 ? $("#button0").show() : $("#button0").hide();  
+                } else if (typeof button0 === "string") {
+                    $("#button0").show();
                     $("#button0").prop("innerHTML", button0);
                     $("#button0").prop('disabled', false);
                 }
-                if (button1 !== undefined) {
+
+                if (typeof button1 === "boolean") {
+                    button1 ? $("#button1").show() : $("#button1").hide();  
+                } else if (button1 !== undefined) {
                     $("#button1").show();
                     $("#button1").prop("innerHTML", button1);
                     $("#button1").prop('disabled', false);
