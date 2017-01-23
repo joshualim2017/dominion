@@ -41,7 +41,10 @@
              'workshop' : { src: '/cards/workshop.jpg',
                          classes: 'card cardSize'},
              'mine' : { src: '/cards/mine.jpg',
-                         classes: 'card cardSize'},                     
+                         classes: 'card cardSize'},
+            'curse' : { src: '/cards/curse.jpg',
+                         classes: 'card cardSize'},      
+
         }
 
 /**************************
