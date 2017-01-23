@@ -108,9 +108,12 @@
 
            socketio.on('resolveBuyCard', function(data) {
              updateTurnInfo(undefined, data.numBuys, data.numTreasures, undefined, data.actionText);
-             
              setUpShop(data.shop);
            });
+
+           socketio.on('updateTurnInfo', function(data) {
+                updateTurnInfo(data.numActions, data.numBuys, data.numTreasures, data.cardPlayed, data.actionText);
+           });           
 
            socketio.on('ableToBePurchasedCards', function(data) {
                 updateAbleToBePurchasedCards(data.ableToBePurchasedCards);
