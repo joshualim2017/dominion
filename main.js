@@ -36,11 +36,14 @@ var cardInfo = {
     		     value: 1,
                  type: "T"},
     'estate' : { cost: 2,
-                 type: "V"},                        
+                 type: "V",
+             	pointValue:1},                        
     'duchy' : { cost: 5,
-                 type: "V"},
+                 type: "V",
+             	pointValue:3},
     'province' : { cost: 8,
-                 type: "V"},  
+                 type: "V",
+             	pointValue:6},  
     'silver' : { cost: 3,
     			 value: 2,
                  type: "T"},
@@ -89,15 +92,21 @@ var cardInfo = {
          		type: "A",
      			special: true,
      			actionText: "Choose a copper to trash."},
-
-
+    'curse' :  {cost: 0,
+         		type: "C",
+             	pointValue:-1},
+    'gardens' : {cost: 4,
+    			 type: "V",
+    			 pointValue: undefined},
 
 }
 
 
 //END GLOBAL VARIABLES
 
-
+///////////////////////////
+//START SOCKET LISTENERS//
+//////////////////////////
 
 io.sockets.on('connection', function(socket) {
 	//if client gets a message on the socket named "message to server", then add the first two clients to the list
@@ -146,6 +155,90 @@ io.sockets.on('connection', function(socket) {
 	});
 });
 
+///////////////////////////
+//END SOCKET LISTENERS////
+//////////////////////////
+
+///////////////////////////
+//START UTIL FUNCTIONS////
+//////////////////////////
+function canBuyCard(card) {
+	return (numBuys > 0) && (shopCards.indexOf(card) > -1) && (numTreasures >= cardInfo[card].cost) && (shop[card] > 0) 
+}
+
+//given a playerId, returns whether or not that player's hand has TYPE cards
+function hasTypeCards(playerId, type) {
+	var hand = playerHands[playerId];
+    for (var i = 0; i < hand.length; i++) {
+        if (cardInfo[hand[i]].type === type) {
+            return true;
+        }
+    }
+    return false;
+}
+
+//given a playerId, returns a list of TYPE cards in that player's hand
+function getTypeCardsInHand(playerId, type) {
+	var hand, i, treasureCards;
+	treasureCards = [];
+	hand = playerHands[playerId];
+	for (i = 0; i < hand.length; i++) {
+		 if (cardInfo[hand[i]].type === type) {
+		 	treasureCards.push(hand[i]);
+		 }
+	}
+	return treasureCards;
+}
+
+//given a playerId and card name, returns a list of CARDNAME cards in that player's hand
+function getSpecficCardsInHand(playerId, cardName) {
+	var hand, i, cards;
+	cards = [];
+	hand = playerHands[playerId];
+	for (i = 0; i < hand.length; i++) {
+		 if (hand[i] === cardName) {
+		 	cards.push(hand[i]);
+		 }
+	}
+	return cards;
+}
+
+//given a playerId and card name, returns whether or not the player has that card
+function hasCardInHand(playerId, cardName) {
+	var hand, i;
+	hand = playerHands[playerId];
+	for (i = 0; i < hand.length; i++) {
+		if (hand[i] === cardName) {
+			return true;
+		}
+	}
+	return false;
+}
+
+//given a playerId, type, and/or card, returns a string of the desired actionText
+function createActionText(playerId, type, card) {
+	if (type === "playCard"){ 
+		return "Player " + playerId + " played " + card + ".";
+	}
+	if (type === "gainCard") {
+		return "Player " + playerId + " gained " + card + ".";
+	}
+	if (type === "turn") {
+		return "Player " + playerId + "'s turn.";
+	} 
+	if (type === "win") {
+		return "Player " + playerId + " wins!";
+	}
+}
+
+//given a playerId, returns a list all of that player's cards
+function getAllCards(playerId) {
+	return playerHands[playerId].concat(playerDecks[playerId]).concat(playerDiscardPile[playerId]);
+}
+
+///////////////////////////
+//END UTIL FUNCTIONS//////
+//////////////////////////
 
 
 //update current player, CHECK GAME END CONDITIONS, notify all clients of current player
@@ -156,13 +249,37 @@ function endTurn() {
 	updateCurrentPlayer();
 	resetTurnInfo();
 	//CHECK END CONDITIONS
+	if (isGameOver()) {
+		for (playerId in playerSocketIds) {
+			var socketId = playerSocketIds[playerId];
+			io.sockets.connected[socketId].emit("actionTextAndButton", {actionText: createActionText(computeWinner(), "win", ""), button0: false, button1: false});
+		}
+		return;
+	}
 	for (playerId in playerSocketIds) {
 		var socketId = playerSocketIds[playerId];
 		io.sockets.connected[socketId].emit("startTurn", {"name": "Player " + currPlayer, "numActions":numActions, 
 			"numBuys":numBuys, "numTreasures":numTreasures, actionText:createActionText(currPlayer, "turn", "")});
 	}
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
-	io.sockets.connected[playerSocketIds[currPlayer]].emit("playableCards", {"playableCards": computePlayableCards()});	
+	io.sockets.connected[playerSocketIds[currPlayer]].emit("playableCards", {"playableCards": computePlayableCards()});
+
+	io.sockets.connected[playerSocketIds[currPlayer]].emit("output", calculateVictoryPoints(currPlayer));
+}
+
+//checks end conditions
+function isGameOver() {
+	if (shop['province'] === 0) {
+		return true;
+	}
+    var emptyPiles = 0;
+	for (var i =0; i < shopCards.length; i++) {
+		if (shop[shopCards[i]] === 0) {
+			emptyPiles += 1;
+		}
+	}
+	return emptyPiles >= 3;
+	
 }
 //returns the number of next player
 function updateCurrentPlayer() {
@@ -226,7 +343,7 @@ function shuffleDeck(arr) {
 //initialize default shop; changes 2 global variables - shop and shopCards, does not return anything
 function initializeDefaultShop() {
 	shop = {"copper": 40, "estate": 8, "duchy": 8, "province": 8, "silver": 40, "gold": 40, "village":10, "remodel":10, "smithy":10, 
-		"market":10, "laboratory": 10, "festival": 10, "chapel": 10, "moneylender":10, "mine":10};
+		"market":10, "laboratory": 10, "festival": 10, "chapel": 10, "moneylender":10, "mine":10, "curse": 10};
 	shopCards = Object.keys(shop);
 }
 
@@ -335,62 +452,11 @@ function buyCard(card) {
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("playableCards", {"playableCards": computePlayableCards()});
 }
 
-function canBuyCard(card) {
-	return (numBuys > 0) && (shopCards.indexOf(card) > -1) && (numTreasures >= cardInfo[card].cost) && (shop[card] > 0) 
-}
-
 function discardHandAndPlayedCards() {
 	var cardsToDiscard = playerHands[currPlayer].concat(currPlayedCards);
 	playerHands[currPlayer] = [];
 	currPlayedCards = []
 	playerDiscardPile[currPlayer] = playerDiscardPile[currPlayer].concat(cardsToDiscard);	
-}
-
-//given a playerId, returns whether or not that player's hand has TYPE cards
-function hasTypeCards(playerId, type) {
-	var hand = playerHands[playerId];
-    for (var i = 0; i < hand.length; i++) {
-        if (cardInfo[hand[i]].type === type) {
-            return true;
-        }
-    }
-    return false;
-}
-
-//given a playerId, returns a list of TYPE cards in that player's hand
-function getTypeCardsInHand(playerId, type) {
-	var hand, i, treasureCards;
-	treasureCards = [];
-	hand = playerHands[playerId];
-	for (i = 0; i < hand.length; i++) {
-		 if (cardInfo[hand[i]].type === type) {
-		 	treasureCards.push(hand[i]);
-		 }
-	}
-	return treasureCards;
-}
-
-function getSpecficCardsInHand(playerId, cardName) {
-	var hand, i, cards;
-	cards = [];
-	hand = playerHands[playerId];
-	for (i = 0; i < hand.length; i++) {
-		 if (hand[i] === cardName) {
-		 	cards.push(hand[i]);
-		 }
-	}
-	return cards;
-}
-
-function hasCardInHand(playerId, cardName) {
-	var hand, i;
-	hand = playerHands[playerId];
-	for (i = 0; i < hand.length; i++) {
-		if (hand[i] === cardName) {
-			return true;
-		}
-	}
-	return false;
 }
 
 function computePlayableCards() {
@@ -488,17 +554,6 @@ function applyAdvancedCardEffects(cardName) {
 	}	
 }
 
-function createActionText(playerId, type, card) {
-	if (type === "playCard"){ 
-		return "Player " + playerId + " played " + card + ".";
-	}
-	if (type === "gainCard") {
-		return "Player " + playerId + " gained " + card + ".";
-	}
-	if (type === "turn") {
-		return "Player " + playerId + "'s turn.";
-	} 
-}
 
 //inputType: button or card. inputName: 0 or 1 for button, cardname for card
 function resolveSpecialCase(inputType, inputName) {
@@ -592,4 +647,36 @@ function removeCardPhase() {
 	} else {
 		currPhase = "treasurePhase";
 	}
+}
+
+function calculateVictoryPoints(playerId) {
+	var allCards, i, currCard, victoryPoints;
+	victoryPoints = 0;
+	allCards = getAllCards(playerId);
+
+	for (i = 0; i < allCards.length; i++) {
+		currCard = allCards[i];
+		if (cardInfo[currCard].type === "V" || cardInfo[currCard].pointValue != undefined) {
+			if (currCard === "gardens") {
+				victoryPoints += computeGardensValue(playerId);
+			} else {
+				victoryPoints += cardInfo[currCard].pointValue;
+			}
+		}
+	}
+	return victoryPoints;
+}
+
+
+function computeGardensValue(playerId) {
+	return Math.floor(getAllCards(playerId).length / 10);
+}
+ 
+function computeWinner() {
+	var scores, i;
+	scores = [];
+	for (i = 0; i < currNumPlayers; i++) {
+		scores.push(calculateVictoryPoints(i));
+	}
+	return scores.indexOf(Math.max.apply(null,scores));
 }
