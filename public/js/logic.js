@@ -28,6 +28,20 @@
                          classes: 'card cardSize'},  
              'festival' : { src: '/cards/festival.jpg',
                          classes: 'card cardSize'}, 
+             'chapel' : { src: '/cards/chapel.jpg',
+                         classes: 'card cardSize'},
+             'feast' : { src: '/cards/feast.jpg',
+                         classes: 'card cardSize'},  
+             'remodel' : { src: '/cards/remodel.jpg',
+                         classes: 'card cardSize'},   
+             'moneylender' : { src: '/cards/moneylender.jpg',
+                         classes: 'card cardSize'},
+             'cellar' : { src: '/cards/cellar.jpg',
+                         classes: 'card cardSize'},
+             'workshop' : { src: '/cards/workshop.jpg',
+                         classes: 'card cardSize'},
+             'mine' : { src: '/cards/mine.jpg',
+                         classes: 'card cardSize'},                     
         }
 
 /**************************
@@ -39,14 +53,14 @@
             });  
 
             //click end turn button
-            $("#endTurn").click(function() {
-                endTurn();
+            $("#button0").click(function() {
+                socketio.emit("button", {button: 0});
             });
 
             //click a buy button
             $(document).on('click', '.ableToBuy', buyCard);
     
-            $(document).on('click', '.card', playCard);
+            $(document).on('click', '.card', selectCard);
 
 /**************************
 *    END EVENT LISTENERS  *
@@ -94,11 +108,12 @@
 
            socketio.on('resolveBuyCard', function(data) {
              updateTurnInfo(undefined, data.numBuys, data.numTreasures, undefined, data.actionText);
-             $("#shopSection div").remove();
              setUpShop(data.shop);
-             updatePlayableCards(data.playableCards);
-             updateAbleToBePurchasedCards(data.ableToBePurchasedCards);
            });
+
+           socketio.on('updateTurnInfo', function(data) {
+                updateTurnInfo(data.numActions, data.numBuys, data.numTreasures, data.cardPlayed, data.actionText);
+           });           
 
            socketio.on('ableToBePurchasedCards', function(data) {
                 updateAbleToBePurchasedCards(data.ableToBePurchasedCards);
@@ -108,6 +123,18 @@
                 updatePlayableCards(data.playableCards);
            });
 
+
+           socketio.on('actionTextAndButton', function(data) {
+                updateTurnInfo(undefined, undefined, undefined, undefined, data.actionText);
+                updateButtons(data.button0, data.button1);
+                
+           });
+
+           socketio.on('updateShop', function(data) {
+                setUpShop(data.shop);
+           });
+
+
            socketio.on('hand', function(data) {
                 var card;
                 $("#hand div").remove();
@@ -115,6 +142,15 @@
                     card = data.hand[i];
                     displayHandCard(card);
                 }
+           });
+
+        //for feast
+            socketio.on('removeLastCardInPlayedCardsZone', function() {
+                $("#playedCards div").last().remove()
+           });
+
+           socketio.on('endedTurn', function() {
+            endTurn();
            });
 
 
@@ -136,24 +172,15 @@
               $("#joinGame").prop('disabled', true);
             }
 
-            function selectCard(event) {
-                var currentCard = event.target;
-                var currentSelected = $(".selected");
-                for (var i=0; i < currentSelected.length; i++) {
-                    currentSelected[i].classList.remove("selected");
-                }
-                currentCard.classList.add("selected");
-            }
-
             //if LEGAL (highlighted) send card to server, remove from hand, dont' put in played cards area yet (will do it when server send it back)
-            function playCard(event){
+            function selectCard(event){
                 var card, cardName, index;
                 card = event.target;
                 //check if highlighted
                 if (card.classList.contains('yellow-border')) {
                     cardName = card.getAttribute("data-card");
                     //send to server
-                    socketio.emit("playCard", {cardToPlay: cardName});
+                    socketio.emit("selectCard", {selectedCard: cardName});
                 }
             }
 
@@ -185,6 +212,8 @@
             //setup work for shop; input shop is an object with {shopCard : quantity}
             function setUpShop(shopFromServer){
                 var cardsInShop, currentCard;
+                //clear all cards in shop first
+                $("#shopSection div").remove();
                 //sort because order not guaranteed across clients
                 cardsInShop = Object.keys(shopFromServer).sort();
                 for (var i = 0; i < cardsInShop.length; i++) {
@@ -197,13 +226,13 @@
             // for the clients that will begin the game, display the needed objects to start a game
             function startGame() {
                 $(".turnInfo").show();
-                $("#endTurn").show();
-                $("#endTurn").prop('disabled', true);
+                $("#button0").show();
+                $("#button0").prop('disabled', true);
             }
 
             //allow client to execute turn
             function startTurn(numActions, numBuys, numTreasures) {
-                $("#endTurn").prop('disabled', false);
+                $("#button0").prop('disabled', false);
                 //IGNORE ACTION CARDS FOR NOW
             }
 
@@ -215,15 +244,13 @@
                 $("#numTreasures").prop("innerHTML", numTreasures);
                 $("#numBuys").prop("innerHTML", numBuys);
                 $("#numActions").prop("innerHTML", numActions);
-               console.log("Starting " + currPlayer + "'s turn.");
             }
 
             //end current player's turn: 1) send discarded cards to server, clear hand, clear hand cards in UI, disable endTurn button
             function endTurn() {
-                socketio.emit("endTurn");
                 $("#hand div").remove();
                 $("#shopSection button").hide();
-                $("#endTurn").prop('disabled', true);
+                $("#button0").prop('disabled', true);
             }
 
             //display card in playedCards section and update A/B/T
@@ -250,6 +277,8 @@
 
             function updateAbleToBePurchasedCards(ableToBePurchasedCards) {
                 var buyButtons, i, j, currentCard, currentButton;
+                //clear everything first
+                $("#shopSection button").hide();
                 buyButtons = $("#shopSection button");
                 for (i=0; i<ableToBePurchasedCards.length; i++ ) {
                     currentCard = ableToBePurchasedCards[i]
@@ -283,6 +312,24 @@
                             //don't break because the cards aren't unique
                         }
                     }  
+                }
+            }
+
+            function updateButtons(button0, button1) {
+                if (typeof button0 === "boolean") {
+                    button0 ? $("#button0").show() : $("#button0").hide();  
+                } else if (typeof button0 === "string") {
+                    $("#button0").show();
+                    $("#button0").prop("innerHTML", button0);
+                    $("#button0").prop('disabled', false);
+                }
+
+                if (typeof button1 === "boolean") {
+                    button1 ? $("#button1").show() : $("#button1").hide();  
+                } else if (button1 !== undefined) {
+                    $("#button1").show();
+                    $("#button1").prop("innerHTML", button1);
+                    $("#button1").prop('disabled', false);
                 }
             }
     });
