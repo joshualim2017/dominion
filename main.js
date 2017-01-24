@@ -98,6 +98,12 @@ var cardInfo = {
     'gardens' : {cost: 4,
     			 type: "V",
     			 pointValue: undefined},
+    'cellar' :  {cost: 2,
+                 type: "A",
+				 turnEffect: {action: 1},
+             	 special: true,
+             	 numDiscarded: 0,
+             	 actionText: "Discard as many cards as you want."},
 
 }
 
@@ -319,8 +325,8 @@ function drawCards(playerId, numCards) {
 }
 
 function createStartingDeck() {
-	var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate'];
-		// var deck = ['copper','village','estate','copper','moneylender'];
+	var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate', 'cellar'];
+		// var deck = ['copper','village','estate','copper','cellar'];
 	return shuffleDeck(deck);
 }
 
@@ -479,7 +485,7 @@ function computePlayableCards() {
 }
 
 function computePlayableCardSpecialPhase() {
-	if (currCardPhase === "chapel") {
+	if (currCardPhase === "chapel" || currCardPhase === "cellar") {
 		return playerHands[currPlayer];
 	} else if (currCardPhase === "feast") {
 		return [];
@@ -543,7 +549,13 @@ function applyAdvancedCardEffects(cardName) {
 		} else {
 			io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {actionText: cardInfo[cardName].actionText, button0: false});		
 		}
-	}
+	} else if (cardName === "cellar") {
+		if (playerHands[currPlayer].length === 0) {
+			changePhase = false;
+		} else {
+			io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {actionText: cardInfo[cardName].actionText, button0: "Done Discarding" });
+		}
+	}  
 
 	if (changePhase) {
 		currPhase = "cardPhase";
@@ -632,6 +644,18 @@ function resolveSpecialCase(inputType, inputName) {
 				io.sockets.connected[socketId].emit("updateTurnInfo", {"numTreasures" : numTreasures});
 				io.sockets.connected[socketId].emit("actionTextAndButton", {"button0": true});
 			}
+		}
+	} else if (currCardPhase === "cellar") {
+		if (inputType === "card") {
+			playerHands[currPlayer].splice(playerHands[currPlayer].indexOf(inputName), 1);
+			playerDiscardPile[currPlayer].push(inputName);
+			cardInfo[currCardPhase].numDiscarded += 1;
+		}
+		if ((inputType === "button" && inputName === 0) || (playerHands[currPlayer].length === 0)) {
+			drawCards(currPlayer, cardInfo[currCardPhase].numDiscarded);
+			cardInfo[currCardPhase].numDiscarded = 0;
+			removeCardPhase();
+			io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {"actionText": createActionText(currPlayer, "turn", undefined), "button0": "End Turn" });
 		}
 	}
 
