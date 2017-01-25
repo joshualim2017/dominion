@@ -112,6 +112,10 @@ var cardInfo = {
          		type: "A",
 				turnEffect: {card: 4, buy: 1},
      			special: true},
+    'witch' :  {cost: 5,
+         		type: "A",
+				turnEffect: {card: 2},
+     			special: true},
 
 }
 
@@ -333,8 +337,8 @@ function drawCards(playerId, numCards) {
 }
 
 function createStartingDeck() {
-	var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate', 'council_room'];
-		// var deck = ['copper','village','workshop'];
+	// var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate', 'council_room'];
+		var deck = ['copper','village','workshop', 'witch'];
 	return shuffleDeck(deck);
 }
 
@@ -459,15 +463,20 @@ function buyCard(card) {
 	numBuys -= 1;
 	currPhase = "buyPhase";
 	numTreasures -= cardInfo[card].cost;
-	shop[card] -= 1;
-	playerDiscardPile[currPlayer].push(card);
-	for (playerId in playerSocketIds) {
-		var socketId = playerSocketIds[playerId];
-		io.sockets.connected[socketId].emit("resolveBuyCard", {"numBuys": numBuys, "numTreasures": numTreasures, "shop": shop, 
-																actionText: createActionText(currPlayer, "gainCard", card)});
-	}
+	gainCard(currPlayer, card);
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("playableCards", {"playableCards": computePlayableCards()});
+}
+
+//assumes that this card can be gained
+function gainCard(playerId, card) {
+	shop[card] -= 1;
+	playerDiscardPile[playerId].push(card);
+	for (pId in playerSocketIds) {
+		var socketId = playerSocketIds[pId];
+		io.sockets.connected[socketId].emit("resolveBuyCard", {"numBuys": numBuys, "numTreasures": numTreasures, "shop": shop, 
+																actionText: createActionText(playerId, "gainCard", card)});
+	}
 }
 
 function discardHandAndPlayedCards() {
@@ -572,6 +581,13 @@ function applyAdvancedCardEffects(cardName) {
 		for (var i=0; i <currNumPlayers; i++) {
 			if (i != currPlayer) {
 				drawCards(i, 1);
+			}
+		}
+	} else if (cardName === "witch") {
+		changePhase = false;
+		for (var i=0; i <currNumPlayers; i++) {
+			if ((i != currPlayer) && (shop['curse'] > 0)) {
+				gainCard(i, "curse");
 			}
 		}
 	}
