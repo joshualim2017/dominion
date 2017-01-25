@@ -104,6 +104,10 @@ var cardInfo = {
              	 special: true,
              	 numDiscarded: 0,
              	 actionText: "Discard as many cards as you want."},
+    'workshop' :  {cost: 3,
+         		type: "A",
+     			special: true,
+     			actionText: "Choose a card to gain."},
 
 }
 
@@ -325,8 +329,8 @@ function drawCards(playerId, numCards) {
 }
 
 function createStartingDeck() {
-	var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate', 'cellar'];
-		// var deck = ['copper','village','estate','copper','cellar'];
+	// var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate', 'cellar'];
+		var deck = ['copper','village','workshop'];
 	return shuffleDeck(deck);
 }
 
@@ -410,6 +414,10 @@ function computeAbleToBePurchasedCards(dataObject) {
 		
 			ableToBePurchasedCards = getTypeShopCardsUpToAmt(5);
 		
+		} else if (currCardPhase === "workshop") {
+			
+			ableToBePurchasedCards = getTypeShopCardsUpToAmt(4);
+
 		} else if (currCardPhase === "remodel") {
 			
 			if (typeof cardInfo["remodel"].trashedCost === "number") {
@@ -487,7 +495,7 @@ function computePlayableCards() {
 function computePlayableCardSpecialPhase() {
 	if (currCardPhase === "chapel" || currCardPhase === "cellar") {
 		return playerHands[currPlayer];
-	} else if (currCardPhase === "feast") {
+	} else if (currCardPhase === "feast" || currCardPhase === "workshop") {
 		return [];
 	} else if (currCardPhase === "remodel") {
 		if (typeof cardInfo["remodel"].trashedCost === "number") {
@@ -529,7 +537,7 @@ function applyAdvancedCardEffects(cardName) {
 		} else {
 			io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {actionText: cardInfo[cardName].actionText, button0: "Done Trashing" });
 		}
-	} else if (cardName === "feast") {
+	} else if (cardName === "feast" || cardName === "workshop") {
 		io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {actionText: cardInfo[cardName].actionText, button0: false});
 	} else if (cardName === "remodel") {
 		if (playerHands[currPlayer].length === 0) {
@@ -657,7 +665,18 @@ function resolveSpecialCase(inputType, inputName) {
 			removeCardPhase();
 			io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {"actionText": createActionText(currPlayer, "turn", undefined), "button0": "End Turn" });
 		}
-	}
+	} else if (currCardPhase === "workshop") {
+		if (inputType === "buyButton") {
+			shop[inputName] -= 1;
+			playerDiscardPile[currPlayer].push(inputName);
+			removeCardPhase();
+			for (playerId in playerSocketIds) {
+				var socketId = playerSocketIds[playerId];
+				io.sockets.connected[socketId].emit("actionTextAndButton", {"actionText": createActionText(currPlayer, "gainCard", inputName), "button0": true});
+				io.sockets.connected[socketId].emit("updateShop", {"shop": shop});
+			}
+		}
+	} 
 
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("hand", {"hand": playerHands[currPlayer]});
