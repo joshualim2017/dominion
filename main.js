@@ -108,6 +108,10 @@ var cardInfo = {
          		type: "A",
      			special: true,
      			actionText: "Choose a card to gain."},
+    'council_room' :  {cost: 5,
+         		type: "A",
+				turnEffect: {card: 4, buy: 1},
+     			special: true},
 
 }
 
@@ -329,8 +333,8 @@ function drawCards(playerId, numCards) {
 }
 
 function createStartingDeck() {
-	// var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate', 'cellar'];
-		var deck = ['copper','village','workshop'];
+	var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate', 'council_room'];
+		// var deck = ['copper','village','workshop'];
 	return shuffleDeck(deck);
 }
 
@@ -563,7 +567,14 @@ function applyAdvancedCardEffects(cardName) {
 		} else {
 			io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {actionText: cardInfo[cardName].actionText, button0: "Done Discarding" });
 		}
-	}  
+	}  else if (cardName === "council_room") {
+		changePhase = false;
+		for (var i=0; i <currNumPlayers; i++) {
+			if (i != currPlayer) {
+				drawCards(i, 1);
+			}
+		}
+	}
 
 	if (changePhase) {
 		currPhase = "cardPhase";

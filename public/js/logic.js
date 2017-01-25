@@ -43,7 +43,10 @@
              'mine' : { src: '/cards/mine.jpg',
                          classes: 'card cardSize'},
             'curse' : { src: '/cards/curse.jpg',
-                         classes: 'card cardSize'},      
+                         classes: 'card cardSize'},
+            'council_room' : { src: '/cards/council_room.jpg',
+                         classes: 'card cardSize'},
+
 
         }
 
