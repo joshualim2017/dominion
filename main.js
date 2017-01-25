@@ -116,6 +116,11 @@ var cardInfo = {
          		type: "A",
 				turnEffect: {card: 2},
      			special: true},
+    'chancellor' :  {cost: 3,
+         		type: "A",
+     			special: true,
+     			turnEffect: {treasure: 2},
+     			actionText: "Discard entire deck?"},
 
 }
 
@@ -337,8 +342,8 @@ function drawCards(playerId, numCards) {
 }
 
 function createStartingDeck() {
-	// var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate', 'council_room'];
-		var deck = ['copper','village','workshop', 'witch'];
+	var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate', "chancellor"];
+		// var deck = ['copper','village','workshop', 'witch'];
 	return shuffleDeck(deck);
 }
 
@@ -361,7 +366,7 @@ function shuffleDeck(arr) {
 //initialize default shop; changes 2 global variables - shop and shopCards, does not return anything
 function initializeDefaultShop() {
 	shop = {"copper": 40, "estate": 8, "duchy": 8, "province": 8, "silver": 40, "gold": 40, "village":10, "remodel":10, "smithy":10, 
-		"market":10, "laboratory": 10, "festival": 10, "chapel": 10, "moneylender":10, "mine":10, "curse": 10};
+		"market":10, "laboratory": 10, "festival": 10, "chapel": 10, "moneylender":10, "mine":10, "curse": 10, "gardens": 8, "workshop":10};
 	shopCards = Object.keys(shop);
 }
 
@@ -508,7 +513,7 @@ function computePlayableCards() {
 function computePlayableCardSpecialPhase() {
 	if (currCardPhase === "chapel" || currCardPhase === "cellar") {
 		return playerHands[currPlayer];
-	} else if (currCardPhase === "feast" || currCardPhase === "workshop") {
+	} else if (currCardPhase === "feast" || currCardPhase === "workshop" || currCardPhase === "chancellor") {
 		return [];
 	} else if (currCardPhase === "remodel") {
 		if (typeof cardInfo["remodel"].trashedCost === "number") {
@@ -590,6 +595,10 @@ function applyAdvancedCardEffects(cardName) {
 				gainCard(i, "curse");
 			}
 		}
+	} else if (cardName === "chancellor") {
+		
+	io.sockets.connected[playerSocketIds[currPlayer]].emit("output", [playerDiscardPile[currPlayer], playerDecks[currPlayer]]);
+		io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {actionText: cardInfo[cardName].actionText, button0: "Yes", button1: "No"});
 	}
 
 	if (changePhase) {
@@ -703,8 +712,18 @@ function resolveSpecialCase(inputType, inputName) {
 				io.sockets.connected[socketId].emit("updateShop", {"shop": shop});
 			}
 		}
-	} 
+	} else if (currCardPhase === "chancellor") {
+		if (inputType === "button") {
+			if (inputName === 0) {
+				playerDiscardPile[currPlayer] = playerDiscardPile[currPlayer].concat(playerDecks[currPlayer]);
+				playerDecks[currPlayer] = [];
+			} 
+			removeCardPhase();
+			io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {"actionText": createActionText(currPlayer, "turn", undefined), "button0": "End Turn", "button1": false });
+		}
+	}
 
+	io.sockets.connected[playerSocketIds[currPlayer]].emit("output", [playerDiscardPile[currPlayer], playerDecks[currPlayer]]);
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("ableToBePurchasedCards", {"ableToBePurchasedCards": computeAbleToBePurchasedCards()});
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("hand", {"hand": playerHands[currPlayer]});
 	io.sockets.connected[playerSocketIds[currPlayer]].emit("playableCards", {"playableCards": computePlayableCards()});

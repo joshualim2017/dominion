@@ -48,6 +48,10 @@
                          classes: 'card cardSize'},
             'witch' : { src: '/cards/witch.jpg',
                          classes: 'card cardSize'},
+            'gardens' : { src: '/cards/gardens.jpg',
+                         classes: 'card cardSize'},
+            'chancellor' : { src: '/cards/chancellor.jpg',
+                         classes: 'card cardSize'},
 
 
         }
@@ -63,6 +67,11 @@
             //click end turn button
             $("#button0").click(function() {
                 socketio.emit("button", {button: 0});
+            });
+
+            //click button1
+            $("#button1").click(function() {
+                socketio.emit("button", {button: 1});
             });
 
             //click a buy button
