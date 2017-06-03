@@ -67,6 +67,7 @@
             //click end turn button
             $("#button0").click(function() {
                 socketio.emit("button", {button: 0});
+                console.log("clicked end turn");
             });
 
             //click button1
