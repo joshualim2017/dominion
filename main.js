@@ -152,7 +152,10 @@ io.sockets.on('connection', function(socket) {
 	});
 
 	socket.on('selectCard', function(data) {
-		if (currPhase == "cardPhase") {
+		if (!hasCardInHand(currPlayer,data.selectedCard)) {
+			return;
+		}
+		else if (currPhase == "cardPhase") {
 			resolveSpecialCase("card", data.selectedCard);
 		}
 		else {
@@ -172,7 +175,7 @@ io.sockets.on('connection', function(socket) {
 		if (currPhase == "cardPhase") {
 			resolveSpecialCase("button", data.button);
 		}
-		else if (data.button === 0) {
+		else if (data.button === 0 && socket.id === playerSocketIds[currPlayer]) {
 			endTurn();
 		}
 	});
@@ -596,8 +599,7 @@ function applyAdvancedCardEffects(cardName) {
 			}
 		}
 	} else if (cardName === "chancellor") {
-		
-	io.sockets.connected[playerSocketIds[currPlayer]].emit("output", [playerDiscardPile[currPlayer], playerDecks[currPlayer]]);
+	
 		io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {actionText: cardInfo[cardName].actionText, button0: "Yes", button1: "No"});
 	}
 
