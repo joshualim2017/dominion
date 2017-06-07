@@ -52,6 +52,8 @@
                          classes: 'card cardSize'},
             'chancellor' : { src: '/cards/chancellor.jpg',
                          classes: 'card cardSize'},
+            'adventurer' : { src: '/cards/adventurer.jpg',
+                         classes: 'card cardSize'},
 
 
         }
@@ -165,6 +167,14 @@
         //for feast
             socketio.on('removeLastCardInPlayedCardsZone', function() {
                 $("#playedCards div").last().remove()
+           });
+
+            socketio.on('reveal', function(data) {
+                revealCards(data.cardsToReveal, data.delay);
+           });
+
+            socketio.on('endReveal', function() {
+                endRevealCards();
            });
 
            socketio.on('endedTurn', function() {
@@ -349,6 +359,31 @@
                     $("#button1").prop("innerHTML", button1);
                     $("#button1").prop('disabled', false);
                 }
+            }
+
+            //turns on overlay, and adds cards with a DELAY millisecond delay
+            function revealCards(cards, delay) {
+                var card, cardStr, i;
+                i = 0;
+                $("#revealSection").show();
+                var myVar = setInterval(function () {
+                    if (i >= cards.length)   {
+                        clearInterval(myVar);
+                        return;
+                    }
+                    cardStr = cards[i];
+                    card = cardInfo[cardStr];
+                    $("#revealSection").append("<div class='card-wrapper'>" +
+                                 "<img src='" + card.src + "' data-card='" + cardStr + "'class='" + card.classes + "'>" + 
+                                "</div>");
+                    i++;
+                }, delay);
+            }
+
+            //removes cards in revealCards, turns off overlay
+            function endRevealCards() {
+                $("#revealSection").hide();
+                $("#revealSection div").remove();                
             }
     });
         
