@@ -121,6 +121,15 @@ var cardInfo = {
      			special: true,
      			turnEffect: {treasure: 2},
      			actionText: "Discard entire deck?"},
+    'adventurer' :  {cost: 6,
+         		type: "A",
+     			special: true,
+     			default: [],
+     			allRevealed: [],
+     			notTreasures: [],
+     			treasures: [],
+     			actionText: "Revealing cards until you see two treasure cards."},
+
 
 }
 
@@ -152,7 +161,7 @@ io.sockets.on('connection', function(socket) {
 	});
 
 	socket.on('selectCard', function(data) {
-		if (!hasCardInHand(currPlayer,data.selectedCard)) {
+		if (!hasCardInHand(currPlayer, data.selectedCard)) {
 			return;
 		}
 		else if (currPhase == "cardPhase") {
@@ -188,6 +197,29 @@ io.sockets.on('connection', function(socket) {
 ///////////////////////////
 //START UTIL FUNCTIONS////
 //////////////////////////
+
+//returns type of CARD
+function getType(card) {
+	if (card in cardInfo) {
+		return cardInfo[card].type;		
+	} else {
+		return undefined;
+	}
+}
+
+function isTreasureType(card) {
+	return getType(card) === "T";
+}
+
+function isActionType(card) {
+	return getType(card) === "A";
+}
+
+function isVictoryType(card) {
+	return getType(card) === "V";
+}
+
+
 function canBuyCard(card) {
 	return (numBuys > 0) && (shopCards.indexOf(card) > -1) && (numTreasures >= cardInfo[card].cost) && (shop[card] > 0) 
 }
@@ -331,22 +363,35 @@ function startGame() {
 function drawCards(playerId, numCards) {
 	var socketId = playerSocketIds[playerId];
 	for (var i = 0; i < numCards; i++) {
-		if (playerDecks[playerId].length === 0) {
-			if (playerDiscardPile[playerId].length ===0) {
-				//exit for loop because cannot draw any more
-				break;
-			}
-			playerDecks[playerId] = shuffleDeck(playerDiscardPile[playerId]);
-			playerDiscardPile[playerId] = [];
+		var topCard = getTopCard(playerId, true);
+		if (topCard !== undefined) {
+			playerHands[playerId].push(topCard);			
 		}
-		playerHands[playerId].push(playerDecks[playerId].shift());
 	}
 	io.sockets.connected[socketId].emit("hand", {"hand": playerHands[playerId]});
 }
 
+//reveals or removes top card of PLAYERID's deck and returns it
+function getTopCard(playerId, isRemove) {
+	if (playerDecks[playerId].length === 0) {
+			if (playerDiscardPile[playerId].length ===0) {
+				//return nothing because there's nothing left in deck or discard
+				return;
+			}
+		playerDecks[playerId] = shuffleDeck(playerDiscardPile[playerId]);
+		playerDiscardPile[playerId] = [];
+	}
+	//shift removes and returns the 0th element of an array
+	if (isRemove) {
+		return playerDecks[playerId].shift();	
+	} else {
+		return playerDecks[playerId][0];
+	}
+}
+
 function createStartingDeck() {
-	var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate', "chancellor"];
-		// var deck = ['copper','village','workshop', 'witch'];
+	// var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate', "chancellor"];
+	var deck = ['copper','copper','copper', 'copper', 'copper', 'adventurer', 'adventurer', 'adventurer', 'adventurer', 'adventurer'];
 	return shuffleDeck(deck);
 }
 
@@ -369,7 +414,7 @@ function shuffleDeck(arr) {
 //initialize default shop; changes 2 global variables - shop and shopCards, does not return anything
 function initializeDefaultShop() {
 	shop = {"copper": 40, "estate": 8, "duchy": 8, "province": 8, "silver": 40, "gold": 40, "village":10, "remodel":10, "smithy":10, 
-		"market":10, "laboratory": 10, "festival": 10, "chapel": 10, "moneylender":10, "mine":10, "curse": 10, "gardens": 8, "workshop":10};
+		"market":10, "laboratory": 10, "curse": 10};
 	shopCards = Object.keys(shop);
 }
 
@@ -514,9 +559,11 @@ function computePlayableCards() {
 }
 
 function computePlayableCardSpecialPhase() {
+	//all cards  in hand playable
 	if (currCardPhase === "chapel" || currCardPhase === "cellar") {
 		return playerHands[currPlayer];
-	} else if (currCardPhase === "feast" || currCardPhase === "workshop" || currCardPhase === "chancellor") {
+	// no cards in hand playable
+	} else if (currCardPhase === "feast" || currCardPhase === "workshop" || currCardPhase === "chancellor" || currCardPhase === "adventurer") {
 		return [];
 	} else if (currCardPhase === "remodel") {
 		if (typeof cardInfo["remodel"].trashedCost === "number") {
@@ -532,7 +579,7 @@ function computePlayableCardSpecialPhase() {
 		}
 	} else if (currCardPhase === "moneylender") {
 		return getSpecficCardsInHand(currPlayer, "copper");
-	}
+	} 
 }
 
 function applyBasicCardEffects(turnEffect) {
@@ -599,9 +646,34 @@ function applyAdvancedCardEffects(cardName) {
 			}
 		}
 	} else if (cardName === "chancellor") {
-	
 		io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {actionText: cardInfo[cardName].actionText, button0: "Yes", button1: "No"});
+	
+	} else if (cardName === "adventurer") {
+		var treasuresLeft, currentCard
+		treasuresLeft = 2;
+		currentCard = getTopCard(currPlayer, true);
+		//turn on overlay
+		while (treasuresLeft > 0 && currentCard != undefined) {
+
+			if (isTreasureType(currentCard)) {
+				treasuresLeft -= 1;
+				cardInfo[cardName].treasures.push(currentCard);
+			} else {
+				cardInfo[cardName].notTreasures.push(currentCard);
+			}
+			cardInfo[cardName].allRevealed.push(currentCard);
+			currentCard = getTopCard(currPlayer, true);
+		}
+
+		for (playerId in playerSocketIds) {
+			var socketId = playerSocketIds[playerId];
+			io.sockets.connected[socketId].emit("reveal", {cardsToReveal: cardInfo[cardName].allRevealed, delay: 500});
+		}
+		io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {actionText: cardInfo[cardName].actionText, button0: "Done Revealing"});
+	
+
 	}
+
 
 	if (changePhase) {
 		currPhase = "cardPhase";
@@ -722,6 +794,31 @@ function resolveSpecialCase(inputType, inputName) {
 			} 
 			removeCardPhase();
 			io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {"actionText": createActionText(currPlayer, "turn", undefined), "button0": "End Turn", "button1": false });
+		}
+	} else if (currCardPhase === "adventurer") {
+		if (inputType === "button") {
+			if (inputName === 0) {
+
+				//discard revealed cards
+				playerDiscardPile[currPlayer] = playerDiscardPile[currPlayer].concat(cardInfo[currCardPhase].notTreasures);
+
+				//put treasures in hand
+				playerHands[currPlayer] = playerHands[currPlayer].concat(cardInfo[currCardPhase].treasures);
+
+
+
+				for (playerId in playerSocketIds) {
+					var socketId = playerSocketIds[playerId];
+					io.sockets.connected[socketId].emit("endReveal");
+				}
+				io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {"button0": "End Turn"});
+				//reset reveal/treasure arrays
+				cardInfo[currCardPhase].allRevealed = [];
+				cardInfo[currCardPhase].notTreasures = [];
+				cardInfo[currCardPhase].treasures = [];
+				removeCardPhase();
+				
+			}
 		}
 	}
 
