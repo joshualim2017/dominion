@@ -1,0 +1,66 @@
+6pm start on library
+
+6:06 library in UI, can play. currently does nothing. Start to think about card design. I'll need to store the number 7 for number of cards, i need to store the current number of cards left to draw (not the last part because we can just check handSize + currentKeep.size). There's two ways I'm thinking of to display the revealed cards: 
+
+1) Only display one card at a time. With a "reveal next" (if not action) and "Keep/discard" (if action) options. This is the easiest to implement but the "reveal next" card isn't ideal.
+
+2) Similar to adventurer with the multiple cards with a delay, and when the current card is an action card, the 'keep/discard' option will appear. if keep, we keep the card in the overlay, if discard we remove it from the overlay. After the acction, we put all the discarded cards in the discard pile at once.
+
+Option 2 is better. Here's what I'll need for library:
+- defaultGoalCards: 7
+- defaultArray: []
+- currentKeep: []
+- currentDiscard: []
+- currentRevealedCard: undefined
+
+630 break (words with friends. Got ZYGOTES -> 200 POINTS!!!)
+
+650 - resume
+7:07 - running into bugs, not properly coded. Going to dinner now, will finish another time
+
+---
+6/17 
+
+3:31 goal: fix bugs caused last time 
+3:38 found reason why library isn't working. I'm starting the game with 4 cards in the deck lol. It's saying "cannot read property 'src' of undefined" which is correct because there's nothing in the deck
+3:41 adding a helper function to count number of cards in deck (nvm I already have it - getAllCards. 
+	also changing getTopCard - if deck/discard is empty, it returns null instead of undefined (changed drawCards because it previously has a case where it depended on topCard being undefined instead of null)
+3:53 getAllCards gives the number of cards in deck, discard, and hand. I don't want to include hand. Will write new function
+
+356 tested again, but giving this same error
+ TypeError: Cannot read property 'src' of undefined
+    at logic.js:385
+
+357 The reason why it wasn't going into the "if there are no cards in deck/discard" case is because I coded getAllDeckDiscardCards(currPlayer) === 0 instead of getAllDeckDiscardCards(currPlayer).length === 0. Library works now if there's nothing to show. Now working on if there are cards to display
+
+
+403 now thinking about the functionality of the card. the currentRevealedCard should NOT be automatically put into the currentKeep array. If it's NOT an action, then add it automatically. If it is an action, display to user and ask.
+
+435 it gives the correct first action, but now I need to code in the user response. I'm thinking that I messed up in the design of this card a little. Every time I reveal cards, I'm going to reveal currentKeep. --break--
+
+548 continue: If currentKeep is [cp, cp, action], then the first time, I'll show cp cp action. Let's say the next card is cp then currentKeep is [cp,cp,action,cp]. BUT  I already showed  the first cp, cp, action, I just need to show the new cp. Solve this by having an array currentRevealedCards instead of currentRevealedCard. Then, everytime we just show the array currentRevealedCards and then if the user doesn't want the current action then we pop the last element of the array and then attach it to currentKeep. If user does want it, then we just concat currentRevealedCards and currentKeep and make that the new currentKeep.
+
+619: New design for library is working. Clicking the card works so far, but I haven't implemented the part where the card(s) go to the hand or if the user wants the card or not. First check edge cases
+
+628: checked edge cases - if no cards in deck, if not enough for 7 cards. now to implement user choice. Once a user plays library, one of three things will happen. 
+
+1) nothing. The user has no cards in deck or discard (THIS IS IMPLEMENTED. yay)
+2) the user will see the top X cards and the last one will be an action cards and he can choose to keep or discard
+3) the user will see enough cards to make his hand up to 7 and will click "done drawing" to put them in his hand
+
+The "Keep" and "done drawing" button are the same and the function is essentially the same - the currentRevealedCards all go to the currentKeep and the currentRevealed is emptied. Then we check if currentKeep + hand == 7. if it is then we're done, if not then we redo the process
+
+if the user decides not to keep the current action card, then we pop the last item of currentRevealedCards and put it into currentDiscard, and then do the exact same thing 
+
+6:48 There's the applyAdvancedCardEffects function which runs after playing a card. There's also the resolveSpecialCase function which runs when there's a cardPhase in play (e.g. trashing cards for Chapel, deciding whether or not user wants card for Library) The logic for the two functions are very very similar so I'm putting it into a separate function. 
+
+724 helper finished, NOT TESTED. break
+
+------------------------
+6/28 3:00 
+
+opened the file, didn't work. spent 30 minutes trying to find the syntax error. installed jshint and it helped me find it. I forgot to close a {} but the error message it sent was "unexpected token ) on line 985" but i had 984 lines -.- lol.
+
+3:51 - finished library, tested a bit, seems to work. The library helper function worked, but I had to add the case when we're done (add the currentKeep to hand, currentDiscard to discard, get rid of unwanted buttons/overlay, reset library data)
+
+4:00 - added command line args "-d" for default
