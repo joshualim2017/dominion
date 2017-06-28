@@ -874,12 +874,12 @@ function resolveSpecialCase(inputType, inputName) {
 		var discardedAction;
 		if (inputType === "button") {
 			if (inputName === 0) {
-				//currentKeep = currentKeep + currentRevealed
+				//currentKeep = currentKeep + currentRevealedCards
 				cardInfo[currCardPhase].currentKeep = cardInfo[currCardPhase].currentKeep.concat(cardInfo[currCardPhase].currentRevealedCards);
 				cardInfo[currCardPhase].currentRevealedCards = [];
 			} else if (inputName === 1) {
 				//first pop the last action and add it to currentDiscard, then do same
-				discardedAction = currentRevealedCards.pop();
+				discardedAction = cardInfo[currCardPhase].currentRevealedCards.pop();
 				cardInfo[currCardPhase].currentDiscard.push(discardedAction);
 				//repeated for clarity
 				cardInfo[currCardPhase].currentKeep = cardInfo[currCardPhase].currentKeep.concat(cardInfo[currCardPhase].currentRevealedCards);
@@ -888,7 +888,22 @@ function resolveSpecialCase(inputType, inputName) {
 			}
 			//no cards left in deck or hand + currentKeep = 7
 			if (getAllDeckDiscardCards(currPlayer).length === 0 || cardInfo[currCardPhase].currentKeep.length + playerHands[currPlayer].length == cardInfo[currCardPhase].defaultGoalCards) {
-				//done
+				//add desired cards to hand
+				playerHands[currPlayer] = playerHands[currPlayer].concat(cardInfo[currCardPhase].currentKeep)
+
+				//add discarded cards to discard pile
+				playerDiscardPile[currPlayer] = playerDiscardPile[currPlayer].concat(cardInfo[currCardPhase].currentDiscard);
+				
+				//get rid of shown cards and change buttons
+				io.sockets.connected[playerSocketIds[currPlayer]].emit("endReveal");
+				io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {"actionText": createActionText(currPlayer, "gainCard", cardInfo[currCardPhase].currentKeep), "button0": "End Turn", "button1": false});
+
+				cardInfo[currCardPhase].currentKeep = [];
+				cardInfo[currCardPhase].currentDiscard = [];
+				cardInfo[currCardPhase].currentRevealedCards = [];
+
+				
+				removeCardPhase();
 			} else {
 				libraryHelper();
 			}
@@ -979,7 +994,7 @@ function libraryHelper() {
 		} else if (currentCard === undefined || !isActionType(currentCard)) { // if didn't draw any actions AND either the deck is empty or we have 7 cards
 			if (getAllDeckDiscardCards(currPlayer).length === 0 || playerHands[currPlayer].length + library.currentRevealedCards.length + library.currentKeep.length == library.defaultGoalCards) {
 				io.sockets.connected[playerSocketIds[currPlayer]].emit("reveal", {cardsToReveal: library.currentRevealedCards, delay: 250});
-				io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {actionText: library.actionText[1], button0: "Done drawing"});
+				io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {actionText: library.actionText[1], button0: "Done drawing", "button1": false});
 			}
 		}
 
