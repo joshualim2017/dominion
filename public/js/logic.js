@@ -54,6 +54,14 @@
                          classes: 'card cardSize'},
             'adventurer' : { src: '/cards/adventurer.jpg',
                          classes: 'card cardSize'},
+            'library' : { src: '/cards/library.jpg',
+                         classes: 'card cardSize'},
+            'thief' : { src: '/cards/thief.jpg',
+                         classes: 'card cardSize'},
+            'throne_room' : { src: '/cards/throne_room.jpg',
+                         classes: 'card cardSize'},
+            'spy' : { src: '/cards/spy.jpg',
+                         classes: 'card cardSize'},
 
 
         }
