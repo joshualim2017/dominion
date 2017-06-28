@@ -495,13 +495,13 @@ function computeAbleToBePurchasedCards(dataObject) {
 
 		} else if (currCardPhase === "remodel") {
 			
-			if (typeof cardInfo["remodel"].trashedCost === "number") {
-				ableToBePurchasedCards = getTypeShopCardsUpToAmt(cardInfo["remodel"].trashedCost + 2);
+			if (typeof cardInfo.remodel.trashedCost === "number") {
+				ableToBePurchasedCards = getTypeShopCardsUpToAmt(cardInfo.remodel.trashedCost + 2);
 			} 
 		} else if (currCardPhase === "mine") {
 			
-			if (typeof cardInfo["mine"].trashedCost === "number") {
-				ableToBePurchasedCards = getTypeShopCardsUpToAmt(cardInfo["mine"].trashedCost + 3, "T");
+			if (typeof cardInfo.mine.trashedCost === "number") {
+				ableToBePurchasedCards = getTypeShopCardsUpToAmt(cardInfo.mine.trashedCost + 3, "T");
 			} 
 		}
 
@@ -580,13 +580,13 @@ function computePlayableCardSpecialPhase() {
 	} else if (currCardPhase === "feast" || currCardPhase === "workshop" || currCardPhase === "chancellor" || currCardPhase === "adventurer" || currCardPhase === "library") {
 		return [];
 	} else if (currCardPhase === "remodel") {
-		if (typeof cardInfo["remodel"].trashedCost === "number") {
+		if (typeof cardInfo.remodel.trashedCost === "number") {
 			return [];
 		} else {
 			return playerHands[currPlayer];
 		}
 	} else if (currCardPhase === "mine") {
-		if (typeof cardInfo["mine"].trashedCost === "number") {
+		if (typeof cardInfo.mine.trashedCost === "number") {
 			return [];
 		} else {
 			return getTypeCardsInHand(currPlayer, "T");
@@ -612,7 +612,7 @@ function applyBasicCardEffects(turnEffect) {
 }
 
 function applyAdvancedCardEffects(cardName) {
-	var i;
+	var i, playerId;
 	var changePhase = true;
 	if (cardName === "chapel") {
 		if (playerHands[currPlayer].length === 0) {
@@ -656,7 +656,7 @@ function applyAdvancedCardEffects(cardName) {
 	} else if (cardName === "witch") {
 		changePhase = false;
 		for (i=0; i <currNumPlayers; i++) {
-			if ((i != currPlayer) && (shop['curse'] > 0)) {
+			if ((i != currPlayer) && (shop.curse > 0)) {
 				gainCard(i, "curse");
 			}
 		}
@@ -735,6 +735,7 @@ function applyAdvancedCardEffects(cardName) {
 
 //inputType: button or card. inputName: 0 or 1 for button, cardname for card
 function resolveSpecialCase(inputType, inputName) {
+	var socketId, playerId;
 	//store extra information in here
 	if (currCardPhase === "chapel") {
 		if (inputType === "card") {
@@ -753,11 +754,11 @@ function resolveSpecialCase(inputType, inputName) {
 			shop[inputName] -= 1;
 			playerDiscardPile[currPlayer].push(inputName);
 			//remove feast from currPlayedCards
-			currPlayedCards.pop()
+			currPlayedCards.pop();
 			trash.push(currCardPhase);
 			removeCardPhase();
 			for (playerId in playerSocketIds) {
-				var socketId = playerSocketIds[playerId];
+				socketId = playerSocketIds[playerId];
 				io.sockets.connected[socketId].emit("actionTextAndButton", {"actionText": createActionText(currPlayer, "gainCard", inputName), "button0": true});
 				io.sockets.connected[socketId].emit("updateShop", {"shop": shop});
 				io.sockets.connected[socketId].emit("removeLastCardInPlayedCardsZone");
@@ -776,7 +777,7 @@ function resolveSpecialCase(inputType, inputName) {
 			cardInfo[currCardPhase].trashedCost = undefined; 	
 			removeCardPhase();
 			for (playerId in playerSocketIds) {
-				var socketId = playerSocketIds[playerId];
+				socketId = playerSocketIds[playerId];
 				io.sockets.connected[socketId].emit("actionTextAndButton", {"actionText": createActionText(currPlayer, "gainCard", inputName), "button0": true});
 				io.sockets.connected[socketId].emit("updateShop", {"shop": shop});
 			}
@@ -794,7 +795,7 @@ function resolveSpecialCase(inputType, inputName) {
 			cardInfo[currCardPhase].trashedCost = undefined; 	
 			removeCardPhase();
 			for (playerId in playerSocketIds) {
-				var socketId = playerSocketIds[playerId];
+				socketId = playerSocketIds[playerId];
 				io.sockets.connected[socketId].emit("actionTextAndButton", {"actionText": createActionText(currPlayer, "gainCard", inputName), "button0": true});
 				io.sockets.connected[socketId].emit("updateShop", {"shop": shop});
 			}
@@ -806,7 +807,7 @@ function resolveSpecialCase(inputType, inputName) {
 			numTreasures += 3;
 			removeCardPhase();
 			for (playerId in playerSocketIds) {
-				var socketId = playerSocketIds[playerId];
+				socketId = playerSocketIds[playerId];
 				io.sockets.connected[socketId].emit("updateTurnInfo", {"numTreasures" : numTreasures});
 				io.sockets.connected[socketId].emit("actionTextAndButton", {"button0": true});
 			}
@@ -829,7 +830,7 @@ function resolveSpecialCase(inputType, inputName) {
 			playerDiscardPile[currPlayer].push(inputName);
 			removeCardPhase();
 			for (playerId in playerSocketIds) {
-				var socketId = playerSocketIds[playerId];
+				socketId = playerSocketIds[playerId];
 				io.sockets.connected[socketId].emit("actionTextAndButton", {"actionText": createActionText(currPlayer, "gainCard", inputName), "button0": true});
 				io.sockets.connected[socketId].emit("updateShop", {"shop": shop});
 			}
@@ -856,7 +857,7 @@ function resolveSpecialCase(inputType, inputName) {
 
 
 				for (playerId in playerSocketIds) {
-					var socketId = playerSocketIds[playerId];
+					socketId = playerSocketIds[playerId];
 					io.sockets.connected[socketId].emit("endReveal");
 				}
 				io.sockets.connected[playerSocketIds[currPlayer]].emit("actionTextAndButton", {"button0": "End Turn"});
@@ -949,7 +950,7 @@ function computeWinner() {
 
 //returns true or false for changePhase
 function libraryHelper() {
-	var library = cardInfo["library"];
+	var library = cardInfo.library;
 	var currentCard;
 		//while hand + drawed cards < 7
 		while (playerHands[currPlayer].length + library.currentKeep.length + library.currentRevealedCards.length < library.defaultGoalCards){	
