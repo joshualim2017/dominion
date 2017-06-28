@@ -62,3 +62,5 @@ if the user decides not to keep the current action card, then we pop the last it
 opened the file, didn't work. spent 30 minutes trying to find the syntax error. installed jshint and it helped me find it. I forgot to close a {} but the error message it sent was "unexpected token ) on line 985" but i had 984 lines -.- lol.
 
 3:51 - finished library, tested a bit, seems to work. The library helper function worked, but I had to add the case when we're done (add the currentKeep to hand, currentDiscard to discard, get rid of unwanted buttons/overlay, reset library data)
+
+4:00 - added command line args "-d" for default

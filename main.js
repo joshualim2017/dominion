@@ -361,9 +361,9 @@ function updateCurrentPlayer() {
 function startGame() {
 	for (var playerId in playerSocketIds) {
 		var socketId = playerSocketIds[playerId];
-		playerDecks[playerId] = createStartingDeck();
+		playerDecks[playerId] = createStartingDeck(process.argv);
 		drawCards(playerId,5);
-		initializeDefaultShop();
+		initializeDefaultShop(process.argv);
 		io.sockets.connected[socketId].emit("startGame", {"shop": shop});
 		io.sockets.connected[socketId].emit("startTurn", {name: "Player " + currPlayer, 
 			"numActions":numActions, "numBuys":numBuys, "numTreasures":numTreasures, actionText:createActionText(currPlayer, "turn", "")});
@@ -402,10 +402,13 @@ function getTopCard(playerId, isRemove) {
 	}
 }
 
-function createStartingDeck() {
+function createStartingDeck(args) {
+	if (args.indexOf("-d") >= 0) {
+		var deck = ['copper','copper','copper', 'copper','copper','copper','copper','estate','estate','estate'];
+	} else {
 	// var deck = ['copper','copper','copper','copper','copper','copper','copper','estate','estate','estate', "chancellor"];
-	var deck = ['copper','copper','library', 'library', 'library', 'library', 'silver', 'silver', 'silver'];
-	 // var deck = ['copper','copper','library', 'library'];
+		var deck = ['copper','copper','library', 'library', 'library', 'library', 'silver', 'silver', 'silver'];
+	} // var deck = ['copper','copper','library', 'library'];
 	 return shuffleDeck(deck);
 }
 
@@ -426,9 +429,14 @@ function shuffleDeck(arr) {
 }
 
 //initialize default shop; changes 2 global variables - shop and shopCards, does not return anything
-function initializeDefaultShop() {
-	shop = {"copper": 40, "estate": 8, "duchy": 8, "province": 8, "silver": 40, "gold": 40, "village":10, "remodel":10, "smithy":10, 
-		"market":10, "laboratory": 10, "curse": 10};
+function initializeDefaultShop(args) {
+	if (args.indexOf("-d") >=0 ) {
+		shop = {"copper": 40, "estate": 8, "duchy": 8, "province": 8, "silver": 40, "gold": 40, "village":10, "adventurer":10, "smithy":10, 
+			"library":10, "witch": 10, "curse": 10};
+	} else {
+		shop = {"copper": 40, "estate": 8, "duchy": 8, "province": 8, "silver": 40, "gold": 40, "village":10, "remodel":10, "smithy":10, 
+			"market":10, "laboratory": 10, "curse": 10};		
+	}
 	shopCards = Object.keys(shop);
 }
 
